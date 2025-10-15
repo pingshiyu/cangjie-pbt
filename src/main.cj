@@ -3,9 +3,7 @@ package cangjie_experiments
 import stdx.effect.*
 import std.collection.*
 
-class Eff <: Command<Int64> {
-    public func defaultImpl(): Int64 { return 0 }
-}
+class Eff <: Command<Int64> {}
 
 class One <: Command<Unit> {}
 class Two <: Command<Unit> {}
@@ -177,29 +175,40 @@ main(): Int64 {
     printSep()
 
     // stateful handler that counts the number of occurences inside fn?
-    // func severalEffs(): Unit {
-    //     perform One()
-    //     perform One()
-    //     println("hehe")
-    //     perform One()
-    // }
+    func severalEffs(): Unit {
+        perform One()
+        perform One()
+        println("hehe")
+        perform One()
+    }
 
-    // func countEffs<Cmd, Res, R>(def: Res, fn: () -> R): Unit where Cmd <: Command<Res> {
-    //     let count : Box<Int> = Box(0)
-    //     try {
-    //         println("entering fn")
-    //         let rv = fn()
-    //         println("left fn")
-    //     } handle (e: Cmd) {
-    //         count.value = count.value + 1
-    //         resume with def
-    //         // let o = e.defaultImpl()
-    //         // resume with o
-    //     }
-    //     println("counted ${count.value} of Cmd effects.")
-    // }
+    // R ! Effs -> R ! Effs
+    func countEffs<Cmd, Res, R>(def: Res, fn: () -> R): R where Cmd <: Command<Res> {
+        let count : Box<Int> = Box(0)
+        try {
+            let rv = fn()
+            println("counted ${count.value} of One effects.")
+            return rv
+        } handle (e: Cmd) {
+            count.value = count.value + 1
+            // reperform the effect
+            let o = perform e
+            // let o: Res = countEffs<Cmd, Res, Res>(def, { => e.defaultImpl() })
+            resume with o
+        }
+    }
 
-    // countEffs<Eff, Int, Unit>(0, { => severalEffs() })
+    // R ! (One : Effs) -> R ! Effs
+    func interpOne<R>(fn: () -> R) {
+        try {
+            fn()
+        } handle (e : One) {
+            resume 
+        }
+    }
+
+    interpOne({ => countEffs<One, Unit, Unit>((), { => severalEffs() })})
+    // expected: counted 3 of One effects
 
     printSep()
 
@@ -231,6 +240,9 @@ main(): Int64 {
     // expected: 60th fibonacci number is 1548008755920
 
     printSep()
+
+    // randomness effect, allows for injection externally
+    
 
     return 0
 }
