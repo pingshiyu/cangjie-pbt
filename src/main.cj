@@ -50,6 +50,9 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
     }
 }
 
+// outputs a number in range [-128, 127]
+class Rand <: Command<Int> {}
+
 public func printSep() {
     println("------------------")
 }
@@ -193,7 +196,7 @@ main(): Int64 {
             count.value = count.value + 1
             // reperform the effect
             let o = perform e
-            // let o: Res = countEffs<Cmd, Res, Res>(def, { => e.defaultImpl() })
+            // let o2: Res = countEffs<Cmd, Res, Res>(def, { => e.defaultImpl() })
             resume with o
         }
     }
@@ -241,8 +244,45 @@ main(): Int64 {
 
     printSep()
 
-    // randomness effect, allows for injection externally
-    
+    // randomness effect, allows for injection of randomness externally
+    func randBool(): Bool {
+        let i = perform Rand()
+        return i >= 0
+    }
+
+    func randNat(): Int {
+        // pick a random natural number
+        var ns : ArrayList<Int> = ArrayList<Int>()
+        var keepGoing : Bool = randBool()
+        do {
+            ns.add(perform Rand())
+            keepGoing = randBool()
+        } while (keepGoing)
+        
+        var finalVal = 0
+        for (n in ns) {
+            finalVal = finalVal * 2 + n
+        }
+
+        return finalVal
+    }
+
+    func pop<T>(al : ArrayList<T>) : T {
+        let rv = al[0]
+        al.remove(0..1)
+        return rv
+    }
+
+    func interpRand<R>(rl : ArrayList<Int>, fn : () -> R) : R {
+        try {
+            fn ()
+        } handle(e : Rand) {
+            let x = pop(rl)
+            resume with x
+        }
+    }
+
+    printSep()
 
     return 0
 }
