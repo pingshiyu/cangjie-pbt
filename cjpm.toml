@@ -1,6 +1,6 @@
 [package]
   cjc-version = "1.0.0"
-  name = "cj_effects_test"
+  name = "cangjie_experiments"
   description = "nothing here"
   version = "1.0.0"
   target-dir = ""
