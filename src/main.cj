@@ -1,4 +1,4 @@
-package cj_effects_test
+package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
