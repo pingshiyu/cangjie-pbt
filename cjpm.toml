@@ -1,0 +1,19 @@
+[package]
+  cjc-version = "1.0.0"
+  name = "cj_effects_test"
+  description = "nothing here"
+  version = "1.0.0"
+  target-dir = ""
+  src-dir = ""
+  output-type = "executable"
+  compile-option = "--experimental --enable-eh"
+  override-compile-option = ""
+  link-option = ""
+  [package.package-configuration]
+
+[dependencies]
+
+[target.aarch64-apple-darwin]                                                     
+  [target.aarch64-apple-darwin.bin-dependencies]
+    path-option = ["/Users/jacob/projects/cangjie-build/software/darwin_aarch64_cjnative/dynamic/stdx"]
+

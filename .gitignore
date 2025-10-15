@@ -1,6 +1,11 @@
 .vscode
 .cache
-build/*
+target/release/bin/*
 
 # cangjie
 *.cjo
+*cache.json
+.cjpm-history
+.bin-cache
+*.errlog
+*.outlog
