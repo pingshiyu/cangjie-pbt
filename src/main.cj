@@ -1,0 +1,237 @@
+package cj_effects_test
+
+import stdx.effect.*
+import std.collection.*
+
+class Eff <: Command<Int64> {
+    public func defaultImpl(): Int64 { return 0 }
+}
+
+class One <: Command<Unit> {}
+class Two <: Command<Unit> {}
+
+class Erroring <: Command<Unit> {
+    public Erroring(let msg: String) {}
+}
+
+class HasDefault <: Command<Unit> {
+    public func defaultImpl() {
+        println("ran default impl here")
+    }
+}
+
+class ThirdCharacter <: Command<Unit> {
+    public ThirdCharacter(let name: String) {}
+}
+
+class Yield <: Command<Unit> {
+    public Yield(let res: () -> Unit) {}
+}
+class Fork <: Command<Unit> {}
+
+class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
+    public Fib(let n : Int64) {}
+
+    public func defaultImpl(): Int64 {
+        if (n <= 1) { return n }
+        let n1 : Int64 = perform Fib(n-1)
+        let n2 : Int64 = perform Fib(n-2)
+        return n1 + n2
+    }
+
+    public func hashCode() : Int64 {
+        return n
+    }
+
+    public operator func ==(rhs: Fib): Bool {
+        return rhs.n == n
+    }
+
+    public func toString() : String {
+        return "Fib(${n})"
+    }
+}
+
+public func printSep() {
+    println("------------------")
+}
+
+main(): Int64 {
+    try {
+        println(1)
+        let x = perform Eff()
+        println(x)
+    } handle (e : Eff) {
+        println(2) // return value is 3. resume = rest of code after effect is called.
+        resume with 3
+    }
+    // expected 1 \n 2 \n 3
+
+    printSep()
+
+    try {
+        try { 
+            perform One()
+            perform Two()
+        } handle (e: One) {
+            println("handled One into this, inner")
+            resume
+        } handle (e: Two) {
+            println("handling Two now, inner")
+            resume
+        }
+        perform One()
+    } handle (e: One) {
+        println("and now this is the outer handler.")
+        resume
+    }
+    // expected "handled One..." \n "handling Two now..." \n "and now this is the..."
+
+    printSep()
+
+    try {
+        println("normal execution")
+        perform Erroring("big mistake")
+        println("well let's get back to work anyways")
+    } handle (e: Erroring) {
+        println("recovered woop woop")
+        // don't resume
+    }
+    // expected: "well let's get back to work anyways" is NOT printed.
+    
+    printSep()
+
+    println("not gonna handle the one below me")
+    perform HasDefault()
+    // expected "not gonna..." \n "ran default impl..."
+
+    printSep()
+
+    func functionThatUseEffects() {
+        println("spongebob")
+        println("patrick")
+        perform ThirdCharacter("squidward")
+        println("having fun under the sea")
+    }
+
+    try {
+        functionThatUseEffects()
+    } handle(e : ThirdCharacter) {
+        println(e.name.toAsciiUpper())
+        resume
+    }
+    // expected: spongebob \n patrick \n SQUIDWARD \n having fun...
+
+    try {
+        functionThatUseEffects()
+    } handle(e : ThirdCharacter) {
+        println(e.name.replace("squid", "shark"))
+        resume
+    }
+    // expected: spongebob \n patrick \n sharkward \n having fun...
+
+    printSep()
+
+    // currently, the resumptions cannot be treated as "objects"
+    // i.e. they cannot be treated as a lambda, thus disallowing them 
+    // from being used outside the handler's scope.
+    // however, this prevents e.g. schedulers from being implemented
+    // using effects. 
+
+    // this is because, the current restrictions mean that the resumption
+    // must be ran from within the handler's scope (or not ran at all).
+    // thus, implementing such a scheduler is impossible, as it requires
+    // the resumption to be delayed until later, outside of the handler 
+    // scope.
+
+    // we can get past this by doing a CPS transform, which provides
+    // us with the resumption as an explicit lambda object.
+
+    func conc1(): Unit {
+        println("t1: atomic op1")
+        perform Yield({ =>
+            println("t1: atomic op2")
+            perform Yield({=>})
+        })
+    }
+
+    func conc2(): Unit {
+        println("t2: atomic op1")
+        perform Yield({ =>
+            println("t2: atomic op2")
+            perform Yield({=>})
+        })
+    }
+
+    func interleave(t1: () -> Unit, t2: () -> Unit): Unit {
+        try {
+            t1()
+        } handle(y: Yield) {
+            interleave(t2, y.res)
+        }
+    }
+
+    interleave(conc1, conc2)
+    // expected: "t1:..." \n "t2:..." \n "t1:..." \n "t2:..."
+
+    printSep()
+
+    // stateful handler that counts the number of occurences inside fn?
+    // func severalEffs(): Unit {
+    //     perform One()
+    //     perform One()
+    //     println("hehe")
+    //     perform One()
+    // }
+
+    // func countEffs<Cmd, Res, R>(def: Res, fn: () -> R): Unit where Cmd <: Command<Res> {
+    //     let count : Box<Int> = Box(0)
+    //     try {
+    //         println("entering fn")
+    //         let rv = fn()
+    //         println("left fn")
+    //     } handle (e: Cmd) {
+    //         count.value = count.value + 1
+    //         resume with def
+    //         // let o = e.defaultImpl()
+    //         // resume with o
+    //     }
+    //     println("counted ${count.value} of Cmd effects.")
+    // }
+
+    // countEffs<Eff, Int, Unit>(0, { => severalEffs() })
+
+    printSep()
+
+    // handler that will capture Cmd effects, and memoise their input/outputs
+    func memoise<Cmd, Res, R>(m: HashMap<Cmd, Res>, fn : () -> R): R 
+        where Cmd <: Command<Res> & Hashable & Equatable<Cmd> & ToString, 
+              Res <: ToString {
+        try {
+            // every time Cmd is observed inside fn, handle it using handler below:
+            fn()
+        } handle (e : Cmd) {
+            // check on the map first to see if an entry exists
+            let res : Res
+            if (m.contains(e)) {
+                // use stored entry if exists, else use default implementation
+                res = m[e]
+            } else {
+                res = memoise<Cmd, Res, Res>(m, { => e.defaultImpl() })
+                m.add(e, res)
+            }
+            resume with res
+        }
+    }
+
+    let cache = HashMap<Fib, Int64>()
+    let n : Int64 = 60
+    let k : Int64 = memoise<Fib, Int64, Int64>(cache, { => perform Fib(n) })
+    println("${n}th fibonacci number is ${k}")
+    // expected: 60th fibonacci number is 1548008755920
+
+    printSep()
+
+    return 0
+}
+
