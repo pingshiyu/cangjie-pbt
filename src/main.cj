@@ -245,6 +245,10 @@ main(): Int64 {
     printSep()
 
     // randomness effect, allows for injection of randomness externally
+    func rand() : Int {
+        perform Rand()
+    }
+
     func randBool(): Bool {
         let i = perform Rand()
         return i >= 0
@@ -253,7 +257,7 @@ main(): Int64 {
     func randNat(): Int {
         // pick a random natural number
         var ns : ArrayList<Int> = ArrayList<Int>()
-        var keepGoing : Bool = randBool()
+        var keepGoing : Bool = false
         do {
             ns.add(perform Rand())
             keepGoing = randBool()
@@ -265,6 +269,17 @@ main(): Int64 {
         }
 
         return finalVal
+    }
+
+    // generate a list of n numbers, with n randomly chosen.
+    func randList() : List<Int> {
+        let n : Int = randNat()
+        let l : List<Int> = ArrayList<Int>()
+        for (i in 0..n) {
+            let x : Int = rand()
+            l.add(x)
+        }
+        return l
     }
 
     func pop<T>(al : ArrayList<T>) : T {
@@ -281,6 +296,15 @@ main(): Int64 {
             resume with x
         }
     }
+
+    // a random list of length 3.
+    interpRand(ArrayList([3, -1, 100, 102, -1, -6, 192, 92, 31, -133, 20, 31, 85, 84, 93]), { =>
+        let l = randList()
+        println("contents of the random l are:")
+        for (x in l) {
+            println(x)
+        }
+    })
 
     printSep()
 
