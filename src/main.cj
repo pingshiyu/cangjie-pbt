@@ -50,11 +50,12 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
     }
 }
 
-// outputs a number in range [-128, 127]
-class Rand <: Command<Int> {}
-
 public func printSep() {
     println("------------------")
+}
+
+func add(left: Int64, right: Int64) {
+    return left + right
 }
 
 main(): Int64 {
@@ -241,70 +242,6 @@ main(): Int64 {
     let k : Int64 = memoise<Fib, Int64, Int64>(cache, { => perform Fib(n) })
     println("${n}th fibonacci number is ${k}")
     // expected: 60th fibonacci number is 1548008755920
-
-    printSep()
-
-    // randomness effect, allows for injection of randomness externally
-    func rand() : Int {
-        perform Rand()
-    }
-
-    func randBool(): Bool {
-        let i = perform Rand()
-        return i >= 0
-    }
-
-    func randNat(): Int {
-        // pick a random natural number
-        var ns : ArrayList<Int> = ArrayList<Int>()
-        var keepGoing : Bool = false
-        do {
-            ns.add(perform Rand())
-            keepGoing = randBool()
-        } while (keepGoing)
-        
-        var finalVal = 0
-        for (n in ns) {
-            finalVal = finalVal * 2 + n
-        }
-
-        return finalVal
-    }
-
-    // generate a list of n numbers, with n randomly chosen.
-    func randList() : List<Int> {
-        let n : Int = randNat()
-        let l : List<Int> = ArrayList<Int>()
-        for (i in 0..n) {
-            let x : Int = rand()
-            l.add(x)
-        }
-        return l
-    }
-
-    func pop<T>(al : ArrayList<T>) : T {
-        let rv = al[0]
-        al.remove(0..1)
-        return rv
-    }
-
-    func interpRand<R>(rl : ArrayList<Int>, fn : () -> R) : R {
-        try {
-            fn ()
-        } handle(e : Rand) {
-            let x = pop(rl)
-            resume with x
-        }
-    }
-
-    // a random list of length 3.
-    interpRand(ArrayList([3, -1, 100, 102, -1, -6, 192, 92, 31, -133, 20, 31, 85, 84, 93]), { =>
-        let l = randList()
-        println("contents of the random l are:")
-        for (x in l) {
-            println(x)
-        }
-    })
 
     printSep()
 
