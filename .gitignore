@@ -1,6 +1,6 @@
 .vscode
 .cache
-target/release/bin/*
+target/release/*
 
 # cangjie
 *.cjo
@@ -9,3 +9,4 @@ target/release/bin/*
 .bin-cache
 *.errlog
 *.outlog
+*.macrocall
