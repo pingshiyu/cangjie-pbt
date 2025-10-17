@@ -63,7 +63,7 @@ main(): Int64 {
         println(1)
         let x = perform Eff()
         println(x)
-    } handle (e : Eff) {
+    } handle (_ : Eff) {
         println(2) // return value is 3. resume = rest of code after effect is called.
         resume with 3
     }
@@ -75,15 +75,15 @@ main(): Int64 {
         try { 
             perform One()
             perform Two()
-        } handle (e: One) {
+        } handle (_: One) {
             println("handled One into this, inner")
             resume
-        } handle (e: Two) {
+        } handle (_: Two) {
             println("handling Two now, inner")
             resume
         }
         perform One()
-    } handle (e: One) {
+    } handle (_: One) {
         println("and now this is the outer handler.")
         resume
     }
@@ -95,7 +95,7 @@ main(): Int64 {
         println("normal execution")
         perform Erroring("big mistake")
         println("well let's get back to work anyways")
-    } handle (e: Erroring) {
+    } handle (_: Erroring) {
         println("recovered woop woop")
         // don't resume
     }
@@ -206,7 +206,7 @@ main(): Int64 {
     func interpOne<R>(fn: () -> R) {
         try {
             fn()
-        } handle (e : One) {
+        } handle (_ : One) {
             resume 
         }
     }
@@ -244,6 +244,21 @@ main(): Int64 {
     // expected: 60th fibonacci number is 1548008755920
 
     printSep()
+
+    let randomness : List<Int8> = ArrayList<Int8>([
+            Int8(0), Int8(0), Int8(0), Int8(102), Int8(-2), Int8(-6), Int8(122), Int8(90), 
+            Int8(31), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(2),
+            Int8(55), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0),
+            Int8(23), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
+            Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
+            Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
+    let buf : List<String> = ArrayList<String>()
+    interpRand(randomness, {=> expandS(buf, { => perform S()})})
+
+    print("final string generated: ")
+    for (s in buf) {
+        print(s)
+    }
 
     return 0
 }

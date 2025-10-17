@@ -2,6 +2,7 @@ package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
+import std.math.*
 
 // outputs a number in range [-128, 127]
 class Rand <: Command<Int8> {}
@@ -16,28 +17,44 @@ func randBool(): Bool {
     return i >= 0
 }
 
-func randNat(): Int64 {
-    // pick a random natural number
-    var ns : ArrayList<Int64> = ArrayList<Int64>()
-    var keepGoing : Bool = false
-    do {
-        ns.add(Int64(perform Rand()))
-        keepGoing = randBool()
-    } while (keepGoing)
-    
-    var finalVal = 0
-    for (n in ns) {
-        finalVal = finalVal * 2 + n
+func randInt64() : Int64 {
+    // Int64 consists of 8 consecutive bytes from the randomness list
+    let vs : List<Int8> = ArrayList<Int8>()
+    for (_ in 0..8) { vs.add(rand()) }
+    var finalVal : Int64 = 0
+    for (i in 0..8) {
+        // interpret int in big-endian form
+        finalVal += Int64(vs[7-i]) * 2**UInt64(8*i)
     }
-
     return finalVal
 }
 
+func randNat(): List<UInt64> {
+    // pick a random natural number
+    let ns : ArrayList<UInt64> = ArrayList<UInt64>()
+    var keepGoing : Bool = false
+    do {
+        ns.add(UInt64(perform Rand()))
+        keepGoing = randBool()
+    } while (keepGoing)
+    
+    // final value is \sum (2^(4i) * ns[i])
+    return ns
+}
+
+func randIntRange(begin : Int64, end : Int64) : Int64 {
+    // int in range [begin, end)
+    let range = end - begin
+    let chosenInt = abs(randInt64())
+    let width = chosenInt % range
+    return begin + width
+}
+
 // generate a list of n numbers, with n randomly chosen.
-func randList() : List<Int64> {
-    let n : Int64 = randNat()
+func randIntList() : List<Int64> {
+    let n : Int64 = abs(randInt64())
     let l : List<Int64> = ArrayList<Int64>()
-    for (i in 0..n) {
+    for (_ in 0..n) {
         let x : Int64 = Int64(rand())
         l.add(x)
     }
@@ -53,7 +70,10 @@ func pop<T>(al : List<T>) : T {
 func interpRand<R>(rl : List<Int8>, fn : () -> R) : R {
     try {
         fn ()
-    } handle(e : Rand) {
+    } handle(_ : Rand) {
+        if (rl.isEmpty()) {
+            throw Exception("out of randomness!")
+        }
         let x = pop(rl)
         resume with x
     }
@@ -63,8 +83,19 @@ func interpRand<R>(rl : List<Int8>, fn : () -> R) : R {
 // how to do reductions
 
 // context free grammar expansion (randomised)
+class S <: Command<Unit> {}
 
 // treating program as terms in a cfg
-func cfgExpand() {
-    
+func expandS(buf : List<String>, fn : () -> Unit): Unit {
+    try { fn() } handle (_ : S) {
+        let i_rule = randIntRange(0, 3)
+        println("rule ${i_rule}")
+        match (i_rule) {
+            case 0 => expandS(buf, {=> println("expanding to S + S"); perform S(); perform S() })
+            case 1 => { => println("expanding to 1"); buf.add("1") }()
+            case 2 => { => println("expanding to a"); buf.add("a") }()
+            case _ => throw Exception("How did we get here?!?!")
+        }
+        resume
+    }
 }
