@@ -4,32 +4,66 @@ import stdx.effect.*
 import std.collection.*
 import std.math.*
 
+type RUnit = Int8
+
 // outputs a number in range [-128, 127]
-class Rand <: Command<Int8> {}
+class Rand <: Command<RUnit> {}
+
+// unions of all the generateable pure values
+enum Value {
+    | BoolV(Bool)
+    | I64V(Int64)
+    | I8V(Int8)
+}
+
+func showValue(v : Value) : String {
+    match (v) {
+        case BoolV(b) => b.toString() + " : i1"
+        case I64V(i) => i.toString() + " : i64"
+        case I8V(i) => i.toString() + " : i8"
+    }
+}
+
+
+
+// Enter/exit scopes of generation. Relates RUnits together.
+class EnterScope <: Command<Unit> {
+    public EnterScope(let label : String) {}
+}
+// future: can maybe add the generated value to the effect
+class ExitScope <: Command<Unit> {
+    public ExitScope(let gv : ?Value) {}
+} 
 
 // randomness effect, allows for injection of randomness externally
-func rand() : Int8 {
+func rand() : RUnit {
     perform Rand()
 }
 
 func randBool(): Bool {
-    let i = perform Rand()
-    return i >= 0
+    perform EnterScope("randBool()")
+    let i = rand()
+    let v = i > 0
+    perform ExitScope(BoolV(v))
+    return v // such that reductions towards 0 => turns this false
 }
 
 func randInt64() : Int64 {
     // Int64 consists of 8 consecutive bytes from the randomness list
-    let vs : List<Int8> = ArrayList<Int8>()
+    perform EnterScope("randInt64()")
+    let vs : List<RUnit> = ArrayList<RUnit>()
     for (_ in 0..8) { vs.add(rand()) }
     var finalVal : Int64 = 0
     for (i in 0..8) {
         // interpret int in big-endian form
         finalVal += Int64(vs[7-i]) * 2**UInt64(8*i)
     }
+    perform ExitScope(I64V(finalVal))
     return finalVal
 }
 
 func randNat(): List<UInt64> {
+    perform EnterScope("randNat()")
     // pick a random natural number
     let ns : ArrayList<UInt64> = ArrayList<UInt64>()
     var keepGoing : Bool = false
@@ -37,27 +71,33 @@ func randNat(): List<UInt64> {
         ns.add(UInt64(perform Rand()))
         keepGoing = randBool()
     } while (keepGoing)
+    perform ExitScope(None)
     
     // final value is \sum (2^(4i) * ns[i])
     return ns
 }
 
 func randIntRange(begin : Int64, end : Int64) : Int64 {
+    perform EnterScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")")
     // int in range [begin, end)
     let range = end - begin
     let chosenInt = abs(randInt64())
     let width = chosenInt % range
-    return begin + width
+    let v = begin + width
+    perform ExitScope(I64V(v))
+    return v
 }
 
 // generate a list of n numbers, with n randomly chosen.
 func randIntList() : List<Int64> {
+    perform EnterScope("randIntList()")
     let n : Int64 = abs(randInt64())
     let l : List<Int64> = ArrayList<Int64>()
     for (_ in 0..n) {
         let x : Int64 = Int64(rand())
         l.add(x)
     }
+    perform ExitScope(None)
     return l
 }
 
@@ -67,7 +107,9 @@ func pop<T>(al : List<T>) : T {
     return rv
 }
 
-func interpRand<R>(rl : List<Int8>, fn : () -> R) : R {
+// basic interpreter of randomness. 
+// consumes a little bit of the random list
+func interpRand<R>(rl : List<RUnit>, fn : () -> R) : R {
     try {
         fn ()
     } handle(_ : Rand) {
@@ -79,13 +121,112 @@ func interpRand<R>(rl : List<Int8>, fn : () -> R) : R {
     }
 }
 
+// FUTURE: create type CompleteRandTree 
+// to denote that the randomtree can no longer be modified (if its scope
+//  has been closed)
+// when interpreting randomness, also store the sequence in some structure
+// this is so that we can do reductions in the future
+// PRNG that is used together in a call are stored in the same node
+class RandTree {
+    // node -> n children
+    let label : ?String
+    let node : List<RUnit> 
+    let children : List<RandTree>
+    let parent : ?RandTree
+    var genVal : ?Value
+    
+    public RandTree(l: ?String, p : ?RandTree) {
+        label = l
+        node = ArrayList<RUnit>()
+        children = ArrayList<RandTree>()
+        parent = p
+        genVal = None
+    }
+
+    public func addR(r: RUnit): Unit {
+        node.add(r)
+    }
+
+    public func newScope(l : ?String) : RandTree {
+        let nt = RandTree(l, Some(this))
+        this.children.add(nt)
+        return nt
+    }
+
+    public func closeScope(gv : ?Value) : RandTree {
+        genVal = gv
+        match (this.parent) {
+            case Some(p) => return p
+            case None => throw Exception("already at top level scope")
+        }
+    }
+
+    public func show(tabs : Int64) : List<String> {
+        // ntabs(tabs) ++ toString(node) ++ "\n"
+        // ++ children.show(tabs+1)
+        let lines : List<String> = ArrayList<String>()
+        // current node
+        lines.add(showTabs(tabs) + showList<RUnit>(", ", node) + "[" + label.toString() + "] {")
+        for (c in children) { lines.add(all:c.show(tabs+1)) }
+
+        let gvPrint : String = match (genVal) {
+            case Some(gv_) => showValue(gv_)
+            case None => "Non-Primitive"
+        }
+        lines.add(showTabs(tabs) + "} => " + gvPrint)
+        return lines
+    }
+
+    public func print() : Unit {
+        println(showInterleave("\n", this.show(0)))
+    }
+}
+
+func interpRandTree<R>(rl : List<RUnit>, rt : Box<RandTree>, fn : () -> R) : R {
+    try {
+        fn()
+    } handle(_ : Rand) {
+        if (rl.isEmpty()) {
+            throw Exception("out of randomness!")
+        }
+        let r = pop(rl)
+        rt.value.addR(r)
+        resume with r
+    }
+}
+
+func interpScope<R>(rt : Box<RandTree>, fn : () -> R) : R {
+    try {
+        fn ()
+    } handle(e : EnterScope) {
+        rt.value = rt.value.newScope(Some(e.label))
+        resume
+    } handle(e : ExitScope) {
+        rt.value = rt.value.closeScope(e.gv)
+        resume
+    }
+}
+
+func ignoreScope<R>(fn : () -> R) : R {
+    try {
+        fn()
+    } handle(_ : EnterScope) {
+        resume
+    } handle(_ : ExitScope) {
+        resume
+    }
+}
+
 // how to write properties
-// how to do reductions
 
 // context free grammar expansion (randomised)
 class S <: Command<Unit> {}
 
-// treating program as terms in a cfg
+// implements a random sampling of a CFG
+// The grammar goes:
+// S -> S + S
+// S -> 1
+// S -> a
 func expandS(buf : List<String>, fn : () -> Unit): Unit {
     try { fn() } handle (_ : S) {
         let i_rule = randIntRange(0, 3)
