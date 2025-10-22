@@ -245,24 +245,3 @@ func ignoreScope<R>(fn : () -> R) : R {
 
 // how to write properties
 
-// context free grammar expansion (randomised)
-class S <: Command<Unit> {}
-
-// implements a random sampling of a CFG
-// The grammar goes:
-// S -> S + S
-// S -> 1
-// S -> a
-func expandS(buf : List<String>, fn : () -> Unit): Unit {
-    try { fn() } handle (_ : S) {
-        let i_rule = randIntRange(0, 3)
-        println("rule ${i_rule}")
-        match (i_rule) {
-            case 0 => expandS(buf, {=> println("expanding to S + S"); perform S(); perform S() })
-            case 1 => { => println("expanding to 1"); buf.add("1") }()
-            case 2 => { => println("expanding to a"); buf.add("a") }()
-            case _ => throw Exception("How did we get here?!?!")
-        }
-        resume
-    }
-}
