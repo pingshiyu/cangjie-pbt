@@ -24,7 +24,18 @@ func showValue(v : Value) : String {
     }
 }
 
-
+// func createValue<R>(v : R) : Option<Value> {
+//     let ti = TypeInfo.of<R>()
+//     if (ti == TypeInfo.of<Bool>()) {
+//         return Some(BoolV(v))
+//     } else if (ti == TypeInfo.of<Int64>()) {
+//         return Some(I64V(Int64(v)))
+//     } else if (ti == TypeInfo.of<Int8>()) {
+//         return Some(I8V(Int8(v)))
+//     } else {
+//         return None
+//     }
+// }
 
 // Enter/exit scopes of generation. Relates RUnits together.
 class EnterScope <: Command<Unit> {
@@ -35,22 +46,30 @@ class ExitScope <: Command<Unit> {
     public ExitScope(let gv : ?Value) {}
 } 
 
+func withScope<R>(fnName : String, fn : () -> R) : R {
+    perform EnterScope(fnName)
+    let rv = fn()
+    // let storeVal : Option<Value> = createValue(rv)
+    perform ExitScope(None)
+    return rv
+}
+
+
 // randomness effect, allows for injection of randomness externally
 func rand() : RUnit {
     perform Rand()
 }
 
-func randBool(): Bool {
-    perform EnterScope("randBool()")
+func randBool(): Bool { 
+withScope("randBool()", { => 
     let i = rand()
     let v = i > 0
-    perform ExitScope(BoolV(v))
     return v // such that reductions towards 0 => turns this false
-}
+})}
 
-func randInt64() : Int64 {
+func randInt64() : Int64 { 
+withScope("randInt64()", { =>
     // Int64 consists of 8 consecutive bytes from the randomness list
-    perform EnterScope("randInt64()")
     let vs : List<RUnit> = ArrayList<RUnit>()
     for (_ in 0..8) { vs.add(rand()) }
     var finalVal : Int64 = 0
@@ -58,12 +77,11 @@ func randInt64() : Int64 {
         // interpret int in big-endian form
         finalVal += Int64(vs[7-i]) * 2**UInt64(8*i)
     }
-    perform ExitScope(I64V(finalVal))
     return finalVal
-}
+})}
 
-func randNat(): List<UInt64> {
-    perform EnterScope("randNat()")
+func randNat(): List<UInt64> { 
+withScope("randNat()", { =>
     // pick a random natural number
     let ns : ArrayList<UInt64> = ArrayList<UInt64>()
     var keepGoing : Bool = false
@@ -71,35 +89,32 @@ func randNat(): List<UInt64> {
         ns.add(UInt64(perform Rand()))
         keepGoing = randBool()
     } while (keepGoing)
-    perform ExitScope(None)
     
     // final value is \sum (2^(4i) * ns[i])
     return ns
-}
+})}
 
-func randIntRange(begin : Int64, end : Int64) : Int64 {
-    perform EnterScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")")
+func randIntRange(begin : Int64, end : Int64) : Int64 { 
+withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")", { => 
     // int in range [begin, end)
     let range = end - begin
     let chosenInt = abs(randInt64())
     let width = chosenInt % range
     let v = begin + width
-    perform ExitScope(I64V(v))
     return v
-}
+})}
 
 // generate a list of n numbers, with n randomly chosen.
 func randIntList() : List<Int64> {
-    perform EnterScope("randIntList()")
+withScope("randIntList()", { =>
     let n : Int64 = abs(randInt64())
     let l : List<Int64> = ArrayList<Int64>()
     for (_ in 0..n) {
         let x : Int64 = Int64(rand())
         l.add(x)
     }
-    perform ExitScope(None)
     return l
-}
+})}
 
 func pop<T>(al : List<T>) : T {
     let rv = al[0]
@@ -166,14 +181,15 @@ class RandTree {
         // ++ children.show(tabs+1)
         let lines : List<String> = ArrayList<String>()
         // current node
-        lines.add(showTabs(tabs) + showList<RUnit>(", ", node) + "[" + label.toString() + "] {")
+        lines.add(showTabs(tabs) + showMaybe(label) + " : " + showList<RUnit>(", ", node) + " {")
         for (c in children) { lines.add(all:c.show(tabs+1)) }
+        lines.add(showTabs(tabs) + "}")
 
-        let gvPrint : String = match (genVal) {
-            case Some(gv_) => showValue(gv_)
-            case None => "Non-Primitive"
-        }
-        lines.add(showTabs(tabs) + "} => " + gvPrint)
+        // let gvPrint : String = match (genVal) {
+        //     case Some(gv_) => showValue(gv_)
+        //     case None => "Non-Primitive"
+        // }
+        // lines.add(showTabs(tabs) + "} => " + gvPrint)
         return lines
     }
 

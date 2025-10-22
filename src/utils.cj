@@ -24,3 +24,10 @@ func showInterleave<T>(sep : String, l : List<T>) : String where T <: ToString {
 func showTabs(n : Int64) : String {
     return "    " * n
 }
+
+func showMaybe<T>(n : Option<T>) : String where T <: ToString {
+    match (n) {
+        case None => "None"
+        case Some(t) => t.toString()
+    }
+}
