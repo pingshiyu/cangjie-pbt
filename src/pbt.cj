@@ -24,18 +24,31 @@ func showValue(v : Value) : String {
     }
 }
 
-// func createValue<R>(v : R) : Option<Value> {
-//     let ti = TypeInfo.of<R>()
-//     if (ti == TypeInfo.of<Bool>()) {
-//         return Some(BoolV(v))
-//     } else if (ti == TypeInfo.of<Int64>()) {
-//         return Some(I64V(Int64(v)))
-//     } else if (ti == TypeInfo.of<Int8>()) {
-//         return Some(I8V(Int8(v)))
-//     } else {
-//         return None
-//     }
-// }
+func createValue(v : Bool) : Option<Value> {
+    return BoolV(v)
+}
+
+func createValue(v : Int64) : Option<Value> {
+    return I64V(v)
+}
+
+func createValue(v : Int8) : Option<Value> {
+    return I8V(v)
+}
+
+func createValue<R>(v : R) : Option<Value> {
+    return None
+    // let ti = TypeInfo.of<R>()
+    // if (ti == TypeInfo.of<Bool>()) {
+    //     return Some(BoolV(v as Bool))
+    // } else if (ti == TypeInfo.of<Int64>()) {
+    //     return Some(I64V(Int64(v)))
+    // } else if (ti == TypeInfo.of<Int8>()) {
+    //     return Some(I8V(Int8(v)))
+    // } else {
+    //     return None
+    // }
+}
 
 // Enter/exit scopes of generation. Relates RUnits together.
 class EnterScope <: Command<Unit> {
@@ -49,8 +62,8 @@ class ExitScope <: Command<Unit> {
 func withScope<R>(fnName : String, fn : () -> R) : R {
     perform EnterScope(fnName)
     let rv = fn()
-    // let storeVal : Option<Value> = createValue(rv)
-    perform ExitScope(None)
+    let storeVal : Option<Value> = createValue(rv)
+    perform ExitScope(storeVal)
     return rv
 }
 
@@ -183,9 +196,14 @@ class RandTree {
         
         // current node
         let line = showTabs(tabs) + showMaybe(label) + " : " + showList<RUnit>(", ", node) + " {"
+        let gvPrint : String = match (genVal) {
+            case Some(gv_) => showValue(gv_)
+            case None => "Non-Primitive"
+        }
+
         if (children.isEmpty()) {
             // no children: print close bracket on the same line
-            lines.add(line + "}")
+            lines.add(line + "}") // + " => " + gvPrint)
             return lines
         } else {
             lines.add(line)
@@ -193,13 +211,8 @@ class RandTree {
 
         // has children => print them each on new lines.
         for (c in children) { lines.add(all:c.show(tabs+1)) }
-        lines.add(showTabs(tabs) + "}")
+        lines.add(showTabs(tabs) + "}") // + " => " + gvPrint)
 
-        // let gvPrint : String = match (genVal) {
-        //     case Some(gv_) => showValue(gv_)
-        //     case None => "Non-Primitive"
-        // }
-        // lines.add(showTabs(tabs) + "} => " + gvPrint)
         return lines
     }
 
@@ -244,4 +257,3 @@ func ignoreScope<R>(fn : () -> R) : R {
 }
 
 // how to write properties
-

@@ -50,13 +50,6 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
     }
 }
 
-// context free grammar expansion (randomised)
-class S <: Command<Unit> {}
-
-public func printSep() {
-    println("------------------")
-}
-
 func add(left: Int64, right: Int64) {
     return left + right
 }
@@ -248,77 +241,7 @@ main(): Int64 {
 
     printSep()
 
-    // implements a random sampling of a CFG
-    // The grammar goes:
-    // S -> S + S
-    // S -> 1
-    // S -> a
-    func expandS(buf : List<String>, fn : () -> Unit): Unit {
-        try { fn() } handle (_ : S) {
-            let i_rule = randIntRange(0, 3)
-            println("rule ${i_rule}")
-            match (i_rule) {
-                case 0 => expandS(buf, {=> println("expanding to S + S"); perform S(); perform S() })
-                case 1 => { => println("expanding to 1"); buf.add("1") }()
-                case 2 => { => println("expanding to a"); buf.add("a") }()
-                case _ => throw Exception("How did we get here?!?!")
-            }
-            resume
-        }
-    }
-
-    let randomness : List<Int8> = ArrayList<Int8>([
-            Int8(0), Int8(0), Int8(0), Int8(102), Int8(-2), Int8(-6), Int8(122), Int8(90), 
-            Int8(31), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(2),
-            Int8(55), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0),
-            Int8(23), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
-            Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
-            Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
-    let buf : List<String> = ArrayList<String>()
-
-    ignoreScope {
-        interpRand(randomness, {=> expandS(buf, { => perform S()})})
-    }
-
-    print("final string generated: ")
-    for (s in buf) {
-        print(s)
-    }
-    println()
-
-    printSep()
-
-    // create a RandTree and print it
-    let t = RandTree(None, None)
-    t.addR(6); t.addR(4); t.addR(2); t.addR(100)
-    let t1 = t.newScope("t1")
-    t1.addR(5); t1.addR(7)
-    let t1p = t1.closeScope(None)
-    let t2 = t1p.newScope("t2")
-    t2.addR(10); t2.addR(13); t2.addR(17)
-    let t3 = t2.newScope("t3")
-    t3.addR(7); t3.addR(9)
-    let t2p = t2.closeScope(None)
-    let t4 = t2p.newScope("t4")
-    t4.addR(10); t4.addR(11); t4.addR(12)
-    t.print()
-
-    printSep()
-
-    // another random tree, this time we run it against a real generator
-    let rt = RandTree(None, None)
-    let rtb = Box(rt)
-    let randomness2 : List<Int8> = ArrayList<Int8>([
-            Int8(0), Int8(0), Int8(0), Int8(102), Int8(-2), Int8(-6), Int8(122), Int8(90), 
-            Int8(31), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(2),
-            Int8(55), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0),
-            Int8(23), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
-            Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
-            Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
-    let buf2 : List<String> = ArrayList<String>()
-    interpScope(rtb, { => interpRandTree(randomness2, rtb, {=> expandS(buf2, { => perform S()})})})
-
-    rt.print()
+    pbtMain()
 
     return 0
 }

@@ -31,3 +31,7 @@ func showMaybe<T>(n : Option<T>) : String where T <: ToString {
         case Some(t) => t.toString()
     }
 }
+
+public func printSep() {
+    println("------------------")
+}
