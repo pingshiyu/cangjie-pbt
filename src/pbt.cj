@@ -38,16 +38,6 @@ func createValue(v : Int8) : Option<Value> {
 
 func createValue<R>(v : R) : Option<Value> {
     return None
-    // let ti = TypeInfo.of<R>()
-    // if (ti == TypeInfo.of<Bool>()) {
-    //     return Some(BoolV(v as Bool))
-    // } else if (ti == TypeInfo.of<Int64>()) {
-    //     return Some(I64V(Int64(v)))
-    // } else if (ti == TypeInfo.of<Int8>()) {
-    //     return Some(I8V(Int8(v)))
-    // } else {
-    //     return None
-    // }
 }
 
 // Enter/exit scopes of generation. Relates RUnits together.
@@ -171,6 +161,16 @@ class RandTree {
         genVal = None
     }
 
+    public init(l: ?String, n: List<RUnit>, c: List<RandTree>, p: ?RandTree, gv: ?Value) {
+        this.label = l
+        this.node = n
+        // below needs a deep copy, we define it outside as 
+        // init does not like recursion of any kind
+        this.children = c
+        this.parent = p
+        this.genVal = gv
+    }
+
     public func addR(r: RUnit): Unit {
         node.add(r)
     }
@@ -218,6 +218,32 @@ class RandTree {
 
     public func print() : Unit {
         println(showInterleave("\n", this.show(0)))
+    }
+}
+
+func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
+    let newRt : RandTree = RandTree(
+        rt.label,
+        ArrayList<RUnit>(rt.node),
+        ArrayList<RandTree>(),
+        p,
+        rt.genVal
+    )
+    for (c in rt.children) {
+        let newC = randTreeDeepCopy(c, Some(newRt))
+        newRt.children.add(newC)
+    }
+    return newRt
+}
+
+class ReductionStrategy {
+    let workingTree : RandTree
+    let origTree : RandTree
+
+    public ReductionStrategy(t : RandTree) {
+        origTree = t
+        workingTree = t // todo: should init this by copy construction
+        // workingTree = t
     }
 }
 

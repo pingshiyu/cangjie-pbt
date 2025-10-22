@@ -40,8 +40,19 @@ func pbtMain() : Int64 {
     let t4 = t2p.newScope("t4")
     t4.addR(10); t4.addR(11); t4.addR(12)
 
+    // clone and see how it changes
+    let tMod = randTreeDeepCopy(t, None)
+    tMod.addR(69)
+    tMod.node.remove(0..2)
+
+    // also alter one of the children for a laugh
+    tMod.children[1].node.remove(0..1)
+
     println("An example RandTree looks like:")
     t.print()
+
+    println("And modified version:")
+    tMod.print()
 
     printSep()
 
@@ -77,7 +88,7 @@ func pbtMain() : Int64 {
     let buf2 : List<String> = ArrayList<String>()
     interpScope(rtb, { => interpRandTree(randomness2, rtb, {=> expandS(buf2, { => perform S()})})})
 
-    println("Generated: " + showList(", ", buf2))
+    println("Generated: " + showList("", buf2))
     rt.print()
 
     return 0
