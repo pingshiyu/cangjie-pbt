@@ -180,8 +180,18 @@ class RandTree {
         // ntabs(tabs) ++ toString(node) ++ "\n"
         // ++ children.show(tabs+1)
         let lines : List<String> = ArrayList<String>()
+        
         // current node
-        lines.add(showTabs(tabs) + showMaybe(label) + " : " + showList<RUnit>(", ", node) + " {")
+        let line = showTabs(tabs) + showMaybe(label) + " : " + showList<RUnit>(", ", node) + " {"
+        if (children.isEmpty()) {
+            // no children: print close bracket on the same line
+            lines.add(line + "}")
+            return lines
+        } else {
+            lines.add(line)
+        }
+
+        // has children => print them each on new lines.
         for (c in children) { lines.add(all:c.show(tabs+1)) }
         lines.add(showTabs(tabs) + "}")
 
