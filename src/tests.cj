@@ -16,7 +16,7 @@ class AddTests {
     func createListLength3Controlled() {
         // a random list of length 3.
         let l : List<Int64> = ignoreScope {
-            interpRand<List<Int64>>(randomness, { => randIntList() })
+            interpRand<List<Int64>>(randomness, { => randIntListAlt() })
         }
         let expected : List<Int64> = ArrayList<Int64>([31, -103, 20])
 

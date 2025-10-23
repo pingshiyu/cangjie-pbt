@@ -63,11 +63,21 @@ func rand() : RUnit {
     perform Rand()
 }
 
-func randBool(): Bool { 
+func randBool() : Bool {
 withScope("randBool()", { => 
     let i = rand()
     let v = i > 0
     return v // such that reductions towards 0 => turns this false
+})}
+
+func randInt8(): Int8 { 
+withScope("randInt8()", { => 
+    return rand()
+})}
+
+func randSmallInt64(): Int64 {
+withScope("randSmallInt64()", { => 
+    return Int64(rand())
 })}
 
 func randInt64() : Int64 { 
@@ -89,7 +99,7 @@ withScope("randNat()", { =>
     let ns : ArrayList<UInt64> = ArrayList<UInt64>()
     var keepGoing : Bool = false
     do {
-        ns.add(UInt64(perform Rand()))
+        ns.add(UInt64(rand()))
         keepGoing = randBool()
     } while (keepGoing)
     
@@ -97,7 +107,7 @@ withScope("randNat()", { =>
     return ns
 })}
 
-func randIntRange(begin : Int64, end : Int64) : Int64 { 
+func randIntRange(begin : Int64, end : Int64) : Int64 {
 withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")", { => 
     // int in range [begin, end)
     let range = end - begin
@@ -107,8 +117,20 @@ withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")", { =>
     return v
 })}
 
+func randList<T>(g : () -> T) : List<T> {
+withScope("randList<T>(g)", { => 
+    let l : List<T> = ArrayList<T>()
+    var cont: Bool = randBool()
+    while (cont) {
+        l.add(g())
+        cont = randBool()
+    }
+    return l
+})}
+
 // generate a list of n numbers, with n randomly chosen.
-func randIntList() : List<Int64> {
+
+func randIntListAlt() : List<Int64> {
 withScope("randIntList()", { =>
     let n : Int64 = abs(randInt64())
     let l : List<Int64> = ArrayList<Int64>()
@@ -236,17 +258,6 @@ func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
     return newRt
 }
 
-class ReductionStrategy {
-    let workingTree : RandTree
-    let origTree : RandTree
-
-    public ReductionStrategy(t : RandTree) {
-        origTree = t
-        workingTree = t // todo: should init this by copy construction
-        // workingTree = t
-    }
-}
-
 func interpRandTree<R>(rl : List<RUnit>, rt : Box<RandTree>, fn : () -> R) : R {
     try {
         fn()
@@ -283,3 +294,18 @@ func ignoreScope<R>(fn : () -> R) : R {
 }
 
 // how to write properties
+
+// reduces the subtree 
+class ReductionStrategy {
+    let workingTree : RandTree
+    let origTree : RandTree
+
+    public ReductionStrategy(t : RandTree) {
+        origTree = t
+        workingTree = randTreeDeepCopy(t, t.parent)
+    }
+
+    // reduction loop: perform bfs order on reductions
+    // reduce either current node, or 
+    // run prog to see if bug still triggered
+}
