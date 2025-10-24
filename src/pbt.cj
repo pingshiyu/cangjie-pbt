@@ -251,6 +251,10 @@ class RandTree {
         this.node.remove(range)
         this.node.add(all: repl, at: range.start)
     }
+
+    public func replace(loc: Int64, repl: RUnit) {
+        this.modify(loc, 1, [repl])
+    }
 }
 
 func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
@@ -313,11 +317,37 @@ class ReductionStrategy {
         origTree = t
     }
 
-    public func apply(interesting : (List<RUnit>) -> Bool) : RandTree {
+    public static func refsToSubtrees(t: RandTree): Iterable<RandTree> {
+        let lt = LinkedList<RandTree>()
+        func refsToSubtrees_(lt : LinkedList<RandTree>, t : RandTree): Unit {
+            lt.addLast(t)
+            for (c in t.children) {
+                refsToSubtrees_(lt, c)
+            }
+        }
+        refsToSubtrees_(lt, t)
+        return lt
+    }
+
+    public func apply(origTree : RandTree, interesting : (List<RUnit>) -> Bool) : RandTree {
         // set bits to zero, reset and continue from beginning if interesting
         // otherwise reset and try next bit
         // perform in a BFS way
         let workingTree : RandTree = randTreeDeepCopy(origTree, None)
+        for (tp in refsToSubtrees(workingTree)) {
+            for (i in 0..(tp.node.size-1)) {
+                // keep old value, rollback if not interesting.
+                let old = tp.node[i]
+                tp.replace(i, 0)
+                // TODO: FINISH THE LOGIC HERE
+                // if (!interesting(workingTree.randList())) {
+                //     tp.replace(i, old)
+                // } else {
+                //     // is interesting. restart the process from the beginning.
+                //     
+                // }
+            }
+        }
         return workingTree
     }
     // reduction loop: perform bfs order on reductions
