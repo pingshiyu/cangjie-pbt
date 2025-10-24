@@ -241,6 +241,16 @@ class RandTree {
     public func print() : Unit {
         println(showInterleave("\n", this.show(0)))
     }
+
+    public func modify(begin: Int, len: Int, repl: Collection<RUnit>) {
+        this.node.remove(begin..(begin+len-1))
+        this.node.add(all: repl, at: begin)
+    }
+
+    public func modify(range: Range<Int64>, repl: Collection<RUnit>) {
+        this.node.remove(range)
+        this.node.add(all: repl, at: range.start)
+    }
 }
 
 func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
@@ -297,14 +307,19 @@ func ignoreScope<R>(fn : () -> R) : R {
 
 // reduces the subtree 
 class ReductionStrategy {
-    let workingTree : RandTree
     let origTree : RandTree
 
     public ReductionStrategy(t : RandTree) {
         origTree = t
-        workingTree = randTreeDeepCopy(t, t.parent)
     }
 
+    public func apply(interesting : (List<RUnit>) -> Bool) : RandTree {
+        // set bits to zero, reset and continue from beginning if interesting
+        // otherwise reset and try next bit
+        // perform in a BFS way
+        let workingTree : RandTree = randTreeDeepCopy(origTree, None)
+        return workingTree
+    }
     // reduction loop: perform bfs order on reductions
     // reduce either current node, or 
     // run prog to see if bug still triggered
