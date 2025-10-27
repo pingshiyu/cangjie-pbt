@@ -15,9 +15,9 @@ class AddTests {
     @TestCase
     func createListLength3Controlled() {
         // a random list of length 3.
-        let l : List<Int64> = ignoreScope {
-            interpRand<List<Int64>>(randomness, { => randIntListAlt() })
-        }
+        let l : List<Int64> = ignoreScope {interpRand<List<Int64>>(randomness, { => 
+            randIntListAlt() 
+        })}
         let expected : List<Int64> = ArrayList<Int64>([31, -103, 20])
 
         @Expect(l.size, expected.size)
@@ -36,9 +36,9 @@ class AddTests {
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
         let buf : List<String> = ArrayList<String>()
-        ignoreScope {
-            interpRand(randomness0, {=> expandS(buf, { => perform S()})})
-        }
+        ignoreScope {interpRand(randomness0, {=> 
+            expandS(buf, false, { => perform S()})
+        })}
 
         let expected = "1aa"
         let actual : ?String = buf.iterator().reduce({s, e => s + e})

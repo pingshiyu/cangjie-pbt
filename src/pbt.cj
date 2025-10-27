@@ -40,6 +40,10 @@ func createValue<R>(v : R) : Option<Value> {
     return None
 }
 
+class WrongArgumentException <: Exception {
+    public WrongArgumentException(msg: String) {}
+}
+
 // Enter/exit scopes of generation. Relates RUnits together.
 class EnterScope <: Command<Unit> {
     public EnterScope(let label : String) {}
@@ -324,7 +328,27 @@ func ignoreScope<R>(fn : () -> R) : R {
 // reduces the subtree 
 interface ReductionStrategy {
     func apply(origTree : RandTree, interesting : (List<RUnit>) -> Bool) : RandTree
-    
+
+    func makeReduction(rs: List<RUnit>, hasProp: () -> Bool) : RandTree {
+        // run the program once to build the initial randtree, also check that it is interesting
+        // this assumes interesting is a function that uses randomness effects
+        let rt = RandTree(None, None)
+        let rtb = Box<RandTree>(rt)
+        let rsu = ArrayList<RUnit>(rs)
+        let initiallyInteresting = interpScope<Bool>(rtb, {=> interpRandTree(rsu, rtb, {=> hasProp()})})
+
+        if (!initiallyInteresting) {
+            throw WrongArgumentException("Input function, along with random seed, does not contain prop to begin with.")
+        }
+
+        // run apply to get the reduced tree
+        func interesting(rss: List<RUnit>) : Bool {
+            let rsu = ArrayList<RUnit>(rs)
+            return ignoreScope { interpRand(rsu, {=> hasProp() }) }
+        }
+        apply(rt, interesting)
+    }
+
     /* Returns an iterable to all subtrees of `t`: this includes `t` itself. */
     static func refsToSubtrees(t: RandTree): Iterable<RandTree> {
         let lt = LinkedList<RandTree>()
@@ -336,10 +360,11 @@ interface ReductionStrategy {
         }
         refsToSubtrees_(lt, t)
         return lt
-    }    
+    }
 }
 
-class ReduceToZeroStrategy <: ReductionStrategy {
+/* Attempt a reduction at every spot, this will take time O(n^2) for n RUnits. */
+class ReduceToSimpleStrategy <: ReductionStrategy {
 
     public func apply(origTree : RandTree, interesting : (List<RUnit>) -> Bool) : RandTree {
         // set bits to zero, reset and continue from beginning if interesting
@@ -354,6 +379,10 @@ class ReduceToZeroStrategy <: ReductionStrategy {
                 for (i in 0..(tp.node.size-1)) {
                     // keep old value, rollback if not interesting.
                     let old = tp.node[i]
+
+                    // skip if value is already simple
+                    if (old == 0) { continue }
+ 
                     tp.replace(i, 0)
                     if (!interesting(wt.randList())) {
                         tp.replace(i, old)
@@ -369,6 +398,8 @@ class ReduceToZeroStrategy <: ReductionStrategy {
         var reduced = true
         while (reduced) {
             reduced = findInterestingReduction(workingTree)
+            println("Reduced into: ")
+            workingTree.print()
         }
         
         return workingTree

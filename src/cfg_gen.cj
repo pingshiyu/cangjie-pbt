@@ -11,14 +11,14 @@ class S <: Command<Unit> {}
 // S -> S + S
 // S -> 1
 // S -> a
-func expandS(buf : List<String>, fn : () -> Unit): Unit {
+func expandS(buf : List<String>, verbose: Bool, fn : () -> Unit): Unit {
     try { fn() } handle (_ : S) {
         let i_rule = randIntRange(0, 3)
-        println("rule ${i_rule}")
+        if (verbose) { println("rule ${i_rule}") }
         match (i_rule) {
-            case 0 => expandS(buf, {=> println("expanding to S + S"); perform S(); perform S() })
-            case 1 => { => println("expanding to 1"); buf.add("1") }()
-            case 2 => { => println("expanding to a"); buf.add("a") }()
+            case 0 => expandS(buf, verbose, {=> if (verbose) { println("expanding to S + S"); }; perform S(); perform S() })
+            case 1 => { => if (verbose) { println("expanding to 1"); }; buf.add("1") }()
+            case 2 => { => if (verbose) { println("expanding to a"); }; buf.add("a") }()
             case _ => throw Exception("How did we get here?!?!")
         }
         resume
@@ -56,7 +56,7 @@ func pbtMain() : Int64 {
 
     printSep()
 
-    let randomness : List<Int8> = ArrayList<Int8>([
+    let randomness : List<RUnit> = ArrayList<RUnit>([
             Int8(0), Int8(0), Int8(0), Int8(102), Int8(-2), Int8(-6), Int8(122), Int8(90), 
             Int8(31), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(2),
             Int8(55), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0),
@@ -65,9 +65,9 @@ func pbtMain() : Int64 {
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
     let buf : List<String> = ArrayList<String>()
 
-    ignoreScope {
-        interpRand(randomness, {=> expandS(buf, { => perform S()})})
-    }
+    ignoreScope {interpRand(randomness, {=> 
+        expandS(buf, true, { => perform S()})
+    })}
 
     print("final string generated: ")
     print(showList("", buf))
@@ -78,7 +78,7 @@ func pbtMain() : Int64 {
     // another random tree, this time we run it against a real generator
     let rt = RandTree(None, None)
     let rtb = Box(rt)
-    let randomness2 : List<Int8> = ArrayList<Int8>([
+    let randomness2 : List<RUnit> = ArrayList<RUnit>([
             Int8(0), Int8(0), Int8(0), Int8(102), Int8(-2), Int8(-6), Int8(122), Int8(90), 
             Int8(31), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(2),
             Int8(55), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0),
@@ -86,10 +86,41 @@ func pbtMain() : Int64 {
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
     let buf2 : List<String> = ArrayList<String>()
-    interpScope(rtb, { => interpRandTree(randomness2, rtb, {=> expandS(buf2, { => perform S()})})})
+    interpScope(rtb, { => interpRandTree(randomness2, rtb, {=> 
+        expandS(buf2, true, { => perform S()})
+    })})
 
     println("Generated: " + showList("", buf2))
     rt.print()
+
+    printSep()
+
+    // try a reduction, with interestingness condition being that it should start with a `1`
+    let rt3 = RandTree(None, None)
+    let rtb3 = Box(rt)
+    let randomness3 : List<RUnit> = ArrayList<RUnit>([
+            Int8(0), Int8(0), Int8(0), Int8(102), Int8(-2), Int8(-6), Int8(122), Int8(90), 
+            Int8(31), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(2),
+            Int8(55), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0),
+            Int8(23), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
+            Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
+            Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
+    let buf3 : List<String> = ArrayList<String>()
+
+    // TODO: might need to add the rest of the tree in case it consumes _MORE_ randomness
+    // OR: do we just say that is not an interesting reduction?
+    // OR: do we build another strategy that will take this into account?
+
+    /* Reduction maintains the predicate: if the (randomly) produced string starts with a "1" */
+    func startsWith1(): Bool {
+        let bufu : List<String> = ArrayList<String>()
+        expandS(bufu, false, { => perform S()})
+        return bufu[0] == "1"
+    }
+
+    let reduced : RandTree = ReduceToSimpleStrategy().makeReduction(randomness3, startsWith1)
+    println("Reduced RandTree:")
+    reduced.print()
 
     return 0
 }
