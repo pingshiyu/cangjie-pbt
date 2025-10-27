@@ -255,6 +255,18 @@ class RandTree {
     public func replace(loc: Int64, repl: RUnit) {
         this.modify(loc, 1, [repl])
     }
+
+    public func randList() : List<RUnit> {
+        func collect(t: RandTree, l: List<RUnit>): Unit {
+            l.add(all: t.node)
+            for (c in t.children) {
+                collect(c, l)
+            }
+        }
+        let rl : List<RUnit> = ArrayList<RUnit>()
+        collect(this, rl)
+        return rl
+    }
 }
 
 func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
@@ -310,14 +322,11 @@ func ignoreScope<R>(fn : () -> R) : R {
 // how to write properties
 
 // reduces the subtree 
-class ReductionStrategy {
-    let origTree : RandTree
-
-    public ReductionStrategy(t : RandTree) {
-        origTree = t
-    }
-
-    public static func refsToSubtrees(t: RandTree): Iterable<RandTree> {
+interface ReductionStrategy {
+    func apply(origTree : RandTree, interesting : (List<RUnit>) -> Bool) : RandTree
+    
+    /* Returns an iterable to all subtrees of `t`: this includes `t` itself. */
+    static func refsToSubtrees(t: RandTree): Iterable<RandTree> {
         let lt = LinkedList<RandTree>()
         func refsToSubtrees_(lt : LinkedList<RandTree>, t : RandTree): Unit {
             lt.addLast(t)
@@ -327,27 +336,41 @@ class ReductionStrategy {
         }
         refsToSubtrees_(lt, t)
         return lt
-    }
+    }    
+}
+
+class ReduceToZeroStrategy <: ReductionStrategy {
 
     public func apply(origTree : RandTree, interesting : (List<RUnit>) -> Bool) : RandTree {
         // set bits to zero, reset and continue from beginning if interesting
         // otherwise reset and try next bit
         // perform in a BFS way
         let workingTree : RandTree = randTreeDeepCopy(origTree, None)
-        for (tp in refsToSubtrees(workingTree)) {
-            for (i in 0..(tp.node.size-1)) {
-                // keep old value, rollback if not interesting.
-                let old = tp.node[i]
-                tp.replace(i, 0)
-                // TODO: FINISH THE LOGIC HERE
-                // if (!interesting(workingTree.randList())) {
-                //     tp.replace(i, old)
-                // } else {
-                //     // is interesting. restart the process from the beginning.
-                //     
-                // }
+
+        /* Attempt reductions at every location, stop if an interesting reduction is found.
+        Return a boolean to indicate whether an interesting reduction were found. */
+        func findInterestingReduction(wt: RandTree): Bool {
+            for (tp in refsToSubtrees(wt)) {
+                for (i in 0..(tp.node.size-1)) {
+                    // keep old value, rollback if not interesting.
+                    let old = tp.node[i]
+                    tp.replace(i, 0)
+                    if (!interesting(wt.randList())) {
+                        tp.replace(i, old)
+                    } else {
+                        // is interesting. restart the process from the beginning.
+                        return true
+                    }
+                }
             }
+            return false
         }
+
+        var reduced = true
+        while (reduced) {
+            reduced = findInterestingReduction(workingTree)
+        }
+        
         return workingTree
     }
     // reduction loop: perform bfs order on reductions
