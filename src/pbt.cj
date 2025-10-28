@@ -2,7 +2,6 @@ package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
-import std.math.*
 
 class WrongArgumentException <: Exception {
     public WrongArgumentException(msg: String) {}
@@ -22,7 +21,7 @@ class OutOfRand <: Command<Unit> {
 }
 
 func handleOutOfRandAsError<R>(fn: () -> R) : R {
-    try { fn() } handle(e : OutOfRand) {
+    try { fn() } handle(_ : OutOfRand) {
         throw WrongArgumentException("Out of random bits!")
     }
 }
@@ -54,7 +53,7 @@ func createValue(v : Int8) : Option<Value> {
     return I8V(v)
 }
 
-func createValue<R>(v : R) : Option<Value> {
+func createValue<R>(_ : R) : Option<Value> {
     return None
 }
 
@@ -72,96 +71,6 @@ func withScope<R>(fnName : String, fn : () -> R) : R {
     let rv = fn()
     let storeVal : Option<Value> = createValue(rv)
     perform ExitScope(storeVal)
-    return rv
-}
-
-
-// randomness effect, allows for injection of randomness externally
-func rand() : RUnit {
-    perform Rand()
-}
-
-func randBool() : Bool {
-withScope("randBool()", { => 
-    let i = rand()
-    let v = i > 0
-    return v // such that reductions towards 0 => turns this false
-})}
-
-func randInt8(): Int8 { 
-withScope("randInt8()", { => 
-    return rand()
-})}
-
-func randSmallInt64(): Int64 {
-withScope("randSmallInt64()", { => 
-    return Int64(rand())
-})}
-
-func randInt64() : Int64 { 
-withScope("randInt64()", { =>
-    // Int64 consists of 8 consecutive bytes from the randomness list
-    let vs : List<RUnit> = ArrayList<RUnit>()
-    for (_ in 0..8) { vs.add(rand()) }
-    var finalVal : Int64 = 0
-    for (i in 0..8) {
-        // interpret int in big-endian form
-        finalVal += Int64(vs[7-i]) * 2**UInt64(8*i)
-    }
-    return finalVal
-})}
-
-func randNat(): List<UInt64> { 
-withScope("randNat()", { =>
-    // pick a random natural number
-    let ns : ArrayList<UInt64> = ArrayList<UInt64>()
-    var keepGoing : Bool = false
-    do {
-        ns.add(UInt64(rand()))
-        keepGoing = randBool()
-    } while (keepGoing)
-    
-    // final value is \sum (2^(4i) * ns[i])
-    return ns
-})}
-
-func randIntRange(begin : Int64, end : Int64) : Int64 {
-withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")", { => 
-    // int in range [begin, end)
-    let range = end - begin
-    let chosenInt = abs(randInt64())
-    let width = chosenInt % range
-    let v = begin + width
-    return v
-})}
-
-func randList<T>(g : () -> T) : List<T> {
-withScope("randList<T>(g)", { => 
-    let l : List<T> = ArrayList<T>()
-    var cont: Bool = randBool()
-    while (cont) {
-        l.add(g())
-        cont = randBool()
-    }
-    return l
-})}
-
-// generate a list of n numbers, with n randomly chosen.
-
-func randIntListAlt() : List<Int64> {
-withScope("randIntList()", { =>
-    let n : Int64 = abs(randInt64())
-    let l : List<Int64> = ArrayList<Int64>()
-    for (_ in 0..n) {
-        let x : Int64 = Int64(rand())
-        l.add(x)
-    }
-    return l
-})}
-
-func pop<T>(al : List<T>) : T {
-    let rv = al[0]
-    al.remove(0..1)
     return rv
 }
 
@@ -237,10 +146,10 @@ class RandTree {
         
         // current node
         let line = showTabs(tabs) + showMaybe(label) + " : " + showList<RUnit>(", ", node) + " {"
-        let gvPrint : String = match (genVal) {
-            case Some(gv_) => showValue(gv_)
-            case None => "Non-Primitive"
-        }
+        // let gvPrint : String = match (genVal) {
+        //     case Some(gv_) => showValue(gv_)
+        //     case None => "Non-Primitive"
+        // }
 
         if (children.isEmpty()) {
             // no children: print close bracket on the same line
@@ -347,90 +256,3 @@ func runRandTracked<R>(rl: List<RUnit>, rt: Box<RandTree>, fn : () -> R): R {
 }
 
 // how to write properties
-
-// reduces the subtree 
-interface ReductionStrategy {
-    func apply(origTree : RandTree, interesting : (List<RUnit>) -> Bool) : RandTree
-
-    func makeReduction(rs: List<RUnit>, hasProp: () -> Bool) : RandTree {
-        // run the program once to build the initial randtree, also check that it is interesting
-        // this assumes interesting is a function that uses randomness effects
-        let rt = RandTree(None, None)
-        let rtb = Box<RandTree>(rt)
-        let rsu = ArrayList<RUnit>(rs)
-        let initiallyInteresting = runRandTracked(rs, rtb, hasProp)
-
-        if (!initiallyInteresting) {
-            throw WrongArgumentException("Input function, along with random seed, does not contain prop to begin with.")
-        }
-
-        // run apply to get the reduced tree
-        func interesting(rss: List<RUnit>) : Bool {
-            let rsu = ArrayList<RUnit>(rss)
-            try { // unfortunate: cannot use an effect here but rather a try/catch
-                handleOutOfRandAsError { runRand(rsu, hasProp) }
-            } catch(e: WrongArgumentException) {
-                false
-            }
-        }
-        apply(rt, interesting)
-    }
-
-    /* Returns an iterable to all subtrees of `t`: this includes `t` itself. */
-    static func refsToSubtrees(t: RandTree): Iterable<RandTree> {
-        let lt = LinkedList<RandTree>()
-        func refsToSubtrees_(lt : LinkedList<RandTree>, t : RandTree): Unit {
-            lt.addLast(t)
-            for (c in t.children) {
-                refsToSubtrees_(lt, c)
-            }
-        }
-        refsToSubtrees_(lt, t)
-        return lt
-    }
-}
-
-/* Attempt a reduction at every spot, this will take time O(n^2) for n RUnits. */
-class ReduceToSimpleStrategy <: ReductionStrategy {
-
-    public func apply(origTree : RandTree, interesting : (List<RUnit>) -> Bool) : RandTree {
-        // set bits to zero, reset and continue from beginning if interesting
-        // otherwise reset and try next bit
-        // perform in a BFS way
-        let workingTree : RandTree = randTreeDeepCopy(origTree, None)
-
-        /* Attempt reductions at every location, stop if an interesting reduction is found.
-        Return a boolean to indicate whether an interesting reduction were found. */
-        func findInterestingReduction(wt: RandTree): Bool {
-            let simpleVals = HashSet<RUnit>([0, 1, -1])
-            for (tp in refsToSubtrees(wt)) {
-                for (i in 0..tp.node.size) {
-                    // keep old value, rollback if not interesting.
-                    let old = tp.node[i]
-
-                    // skip if value is already simple
-                    if (simpleVals.contains(old)) { continue }
-                    
-                    // try with "simple values", in our case it is 0, -1 or 1, with 0 being the simplest.
-                    for (rv in simpleVals) {
-                        tp.replace(i, rv)
-                        if (!interesting(wt.randList())) {
-                            tp.replace(i, old)
-                        } else {
-                            // is interesting. restart the process from the beginning.
-                            return true
-                        }
-                    }
-                }
-            }
-            return false
-        }
-
-        var reduced = true
-        while (reduced) {
-            reduced = findInterestingReduction(workingTree)
-        }
-        
-        return workingTree
-    }
-}

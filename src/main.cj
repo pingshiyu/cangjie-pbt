@@ -50,10 +50,6 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
     }
 }
 
-func add(left: Int64, right: Int64) {
-    return left + right
-}
-
 main(): Int64 {
     try {
         println(1)
@@ -183,7 +179,7 @@ main(): Int64 {
     }
 
     // R ! Effs -> R ! Effs
-    func countEffs<Cmd, Res, R>(def: Res, fn: () -> R): R where Cmd <: Command<Res> {
+    func countEffs<Cmd, Res, R>(_: Res, fn: () -> R): R where Cmd <: Command<Res> {
         let count : Box<Int> = Box(0)
         try {
             let rv = fn()

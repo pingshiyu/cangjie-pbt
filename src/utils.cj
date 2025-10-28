@@ -13,7 +13,6 @@ func showInterleave<T>(sep : String, l : List<T>) : String where T <: ToString {
 
     let sb = StringBuilder()
     sb.append(l[0].toString())
-    var i = 0
     for (i in 1..l.size) {
         sb.append(sep)
         sb.append(l[i].toString())
@@ -30,6 +29,12 @@ func showMaybe<T>(n : Option<T>) : String where T <: ToString {
         case None => "None"
         case Some(t) => t.toString()
     }
+}
+
+func pop<T>(al : List<T>) : T {
+    let rv = al[0]
+    al.remove(0..1)
+    return rv
 }
 
 public func printSep() {

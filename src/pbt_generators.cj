@@ -1,0 +1,87 @@
+package cangjie_experiments
+
+import std.collection.*
+import std.math.*
+
+// randomness effect, allows for injection of randomness externally
+func rand() : RUnit {
+    perform Rand()
+}
+
+func randBool() : Bool {
+withScope("randBool()", { => 
+    let i = rand()
+    let v = i > 0
+    return v // such that reductions towards 0 => turns this false
+})}
+
+func randInt8(): Int8 { 
+withScope("randInt8()", { => 
+    return rand()
+})}
+
+func randSmallInt64(): Int64 {
+withScope("randSmallInt64()", { => 
+    return Int64(rand())
+})}
+
+func randInt64() : Int64 { 
+withScope("randInt64()", { =>
+    // Int64 consists of 8 consecutive bytes from the randomness list
+    let vs : List<RUnit> = ArrayList<RUnit>()
+    for (_ in 0..8) { vs.add(rand()) }
+    var finalVal : Int64 = 0
+    for (i in 0..8) {
+        // interpret int in big-endian form
+        finalVal += Int64(vs[7-i]) * 2**UInt64(8*i)
+    }
+    return finalVal
+})}
+
+func randNat(): List<UInt64> { 
+withScope("randNat()", { =>
+    // pick a random natural number
+    let ns : ArrayList<UInt64> = ArrayList<UInt64>()
+    var keepGoing : Bool = false
+    do {
+        ns.add(UInt64(rand()))
+        keepGoing = randBool()
+    } while (keepGoing)
+    
+    // final value is \sum (2^(4i) * ns[i])
+    return ns
+})}
+
+func randIntRange(begin : Int64, end : Int64) : Int64 {
+withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")", { => 
+    // int in range [begin, end)
+    let range = end - begin
+    let chosenInt = abs(randInt64())
+    let width = chosenInt % range
+    let v = begin + width
+    return v
+})}
+
+func randList<T>(g : () -> T) : List<T> {
+withScope("randList<T>(g)", { => 
+    let l : List<T> = ArrayList<T>()
+    var cont: Bool = randBool()
+    while (cont) {
+        l.add(g())
+        cont = randBool()
+    }
+    return l
+})}
+
+// generate a list of n numbers, with n randomly chosen.
+
+func randIntListAlt() : List<Int64> {
+withScope("randIntList()", { =>
+    let n : Int64 = abs(randInt64())
+    let l : List<Int64> = ArrayList<Int64>()
+    for (_ in 0..n) {
+        let x : Int64 = Int64(rand())
+        l.add(x)
+    }
+    return l
+})}

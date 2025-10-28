@@ -96,8 +96,6 @@ func pbtMain() : Int64 {
     printSep()
 
     // try a reduction, with interestingness condition being that it should start with a `1`
-    let rt3 = RandTree(None, None)
-    let rtb3 = Box(rt)
     let randomness3 : List<RUnit> = ArrayList<RUnit>([
             Int8(0), Int8(0), Int8(0), Int8(102), Int8(-2), Int8(-6), Int8(122), Int8(90), 
             Int8(31), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(2),
@@ -105,7 +103,6 @@ func pbtMain() : Int64 {
             Int8(23), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
-    let buf3 : List<String> = ArrayList<String>()
 
     // TODO: might need to add the rest of the tree in case it consumes _MORE_ randomness
     // OR: do we just say that is not an interesting reduction?
@@ -130,6 +127,20 @@ func pbtMain() : Int64 {
         expandS(buf4, false, { => perform S() })
     })
     println(showList("", buf4))
+
+    printSep()
+    let rand5 = ArrayList<RUnit>([
+        0, 0, 0, 0, 0, 1, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0])
+    let rt5 = RandTree(None, None)
+    let rtb5 = Box<RandTree>(rt5)
+    let buf5 = ArrayList<String>()
+    runRandTracked(rand5, rtb5, {=> expandS(buf5, false, { => perform S() })})
+    println("Tree after reduction:")
+    rt5.print()
 
     return 0
 }
