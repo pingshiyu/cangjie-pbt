@@ -161,7 +161,7 @@ func pbtMain() : Int64 {
     }
     // algorithm has a bug of course: elements deleted if duplicates exists
 
-    let gtor = randList(1000, randInt8)
+    let gtor = randList(10, randInt8)
 
     // property to reveal this bug: len(list) == len(sorted(list))
     let bugTrigger : Option<RandTree> = findCounterExample(42, 100, gtor, testCrappySort)
@@ -170,6 +170,8 @@ func pbtMain() : Int64 {
     let reducedTrigger: RandTree = match (bugTrigger) {
         case Some(bt) => // bug triggered
             // reduce the BugTrigger
+            println("bug found, the bug-trigger input is:");
+            println(showList(", ", runRand(bt.randList(), gtor)));
             ReduceToSimpleStrategy().makeReduction(
                 bt.randList(), 
                 { => !testCrappySort(gtor()) })
@@ -177,9 +179,11 @@ func pbtMain() : Int64 {
     }
     
     // show the generated smaller test case
-    println("smallest bug-triggering test-case is: ")
+    println("reduced bug-triggering test-case is: ")
     let smaller : List<Int8> = runRand(reducedTrigger.randList(), gtor)
     println(showList(", ", smaller))
+    println("triggered by:")
+    reducedTrigger.print()
 
     return 0
 }
