@@ -13,6 +13,11 @@ type RUnit = Int8
 // outputs a number in range [-128, 127]
 class Rand <: Command<RUnit> {}
 
+// randomness effect, allows for injection of randomness externally
+func rand() : RUnit {
+    perform Rand()
+}
+
 // indicate we ran out of randomness:
 // gives option to either error or do something else
 // like undo the last change during reduction

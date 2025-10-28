@@ -3,11 +3,6 @@ package cangjie_experiments
 import std.collection.*
 import std.math.*
 
-// randomness effect, allows for injection of randomness externally
-func rand() : RUnit {
-    perform Rand()
-}
-
 // p denotes the probability of being true.
 func randBool(p : Float64) : Bool {
 withScope("randBool(${p})", { => 
