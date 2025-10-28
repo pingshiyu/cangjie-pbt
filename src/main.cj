@@ -241,22 +241,7 @@ main(): Int64 {
 
     printSep()
 
-    // prog that handles One with true
-    /* THE FOLLOWING CODE RETURNS BROKEN LLVM IR. !!!! */
-    func one() {
-        perform One()
-    }
-
-    func handleOneAsFalse(fn : () -> Unit): Bool {
-        let res = try { fn(); true } handle(e: One) {
-            false
-        }
-        res
-    }
-
-    let res = handleOneAsFalse(one)
-
-    // pbtMain()
+    pbtMain()
 
     return 0
 }
