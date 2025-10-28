@@ -4,10 +4,28 @@ import stdx.effect.*
 import std.collection.*
 import std.math.*
 
+class WrongArgumentException <: Exception {
+    public WrongArgumentException(msg: String) {}
+}
+
 type RUnit = Int8
 
 // outputs a number in range [-128, 127]
 class Rand <: Command<RUnit> {}
+
+// indicate we ran out of randomness:
+// gives option to either error or do something else
+// like undo the last change during reduction
+// OutOfRand :: (() -> R) -> m R
+class OutOfRand <: Command<Unit> {
+    public OutOfRand() {}
+}
+
+func handleOutOfRandAsError<R>(fn: () -> R) : R {
+    try { fn() } handle(e : OutOfRand) {
+        throw WrongArgumentException("Out of random bits!")
+    }
+}
 
 // unions of all the generateable pure values
 enum Value {
@@ -38,10 +56,6 @@ func createValue(v : Int8) : Option<Value> {
 
 func createValue<R>(v : R) : Option<Value> {
     return None
-}
-
-class WrongArgumentException <: Exception {
-    public WrongArgumentException(msg: String) {}
 }
 
 // Enter/exit scopes of generation. Relates RUnits together.
@@ -157,8 +171,9 @@ func interpRand<R>(rl : List<RUnit>, fn : () -> R) : R {
     try {
         fn ()
     } handle(_ : Rand) {
+        // println("interpRand: rl=" + showList(", ", rl))
         if (rl.isEmpty()) {
-            throw Exception("out of randomness!")
+            perform OutOfRand() // throw Exception("out of randomness!")
         }
         let x = pop(rl)
         resume with x
@@ -257,7 +272,7 @@ class RandTree {
     }
 
     public func replace(loc: Int64, repl: RUnit) {
-        this.modify(loc, 1, [repl])
+        this.modify(loc, 2, [repl])
     }
 
     public func randList() : List<RUnit> {
@@ -293,7 +308,7 @@ func interpRandTree<R>(rl : List<RUnit>, rt : Box<RandTree>, fn : () -> R) : R {
         fn()
     } handle(_ : Rand) {
         if (rl.isEmpty()) {
-            throw Exception("out of randomness!")
+            perform OutOfRand() // throw Exception("out of randomness!")
         }
         let r = pop(rl)
         rt.value.addR(r)
@@ -323,6 +338,14 @@ func ignoreScope<R>(fn : () -> R) : R {
     }
 }
 
+func runRand<R>(rl : List<RUnit>, fn : () -> R) : R {
+    ignoreScope { interpRand(rl, fn) }
+}
+
+func runRandTracked<R>(rl: List<RUnit>, rt: Box<RandTree>, fn : () -> R): R {
+    interpScope(rt, { => interpRandTree(rl, rt, fn)})
+}
+
 // how to write properties
 
 // reduces the subtree 
@@ -335,7 +358,7 @@ interface ReductionStrategy {
         let rt = RandTree(None, None)
         let rtb = Box<RandTree>(rt)
         let rsu = ArrayList<RUnit>(rs)
-        let initiallyInteresting = interpScope<Bool>(rtb, {=> interpRandTree(rsu, rtb, {=> hasProp()})})
+        let initiallyInteresting = runRandTracked(rs, rtb, hasProp)
 
         if (!initiallyInteresting) {
             throw WrongArgumentException("Input function, along with random seed, does not contain prop to begin with.")
@@ -343,8 +366,12 @@ interface ReductionStrategy {
 
         // run apply to get the reduced tree
         func interesting(rss: List<RUnit>) : Bool {
-            let rsu = ArrayList<RUnit>(rs)
-            return ignoreScope { interpRand(rsu, {=> hasProp() }) }
+            let rsu = ArrayList<RUnit>(rss)
+            try { // unfortunate: cannot use an effect here but rather a try/catch
+                handleOutOfRandAsError { runRand(rsu, hasProp) }
+            } catch(e: WrongArgumentException) {
+                false
+            }
         }
         apply(rt, interesting)
     }
@@ -375,20 +402,24 @@ class ReduceToSimpleStrategy <: ReductionStrategy {
         /* Attempt reductions at every location, stop if an interesting reduction is found.
         Return a boolean to indicate whether an interesting reduction were found. */
         func findInterestingReduction(wt: RandTree): Bool {
+            let simpleVals = HashSet<RUnit>([0, 1, -1])
             for (tp in refsToSubtrees(wt)) {
-                for (i in 0..(tp.node.size-1)) {
+                for (i in 0..tp.node.size) {
                     // keep old value, rollback if not interesting.
                     let old = tp.node[i]
 
                     // skip if value is already simple
-                    if (old == 0) { continue }
- 
-                    tp.replace(i, 0)
-                    if (!interesting(wt.randList())) {
-                        tp.replace(i, old)
-                    } else {
-                        // is interesting. restart the process from the beginning.
-                        return true
+                    if (simpleVals.contains(old)) { continue }
+                    
+                    // try with "simple values", in our case it is 0, -1 or 1, with 0 being the simplest.
+                    for (rv in simpleVals) {
+                        tp.replace(i, rv)
+                        if (!interesting(wt.randList())) {
+                            tp.replace(i, old)
+                        } else {
+                            // is interesting. restart the process from the beginning.
+                            return true
+                        }
                     }
                 }
             }
@@ -398,13 +429,8 @@ class ReduceToSimpleStrategy <: ReductionStrategy {
         var reduced = true
         while (reduced) {
             reduced = findInterestingReduction(workingTree)
-            println("Reduced into: ")
-            workingTree.print()
         }
         
         return workingTree
     }
-    // reduction loop: perform bfs order on reductions
-    // reduce either current node, or 
-    // run prog to see if bug still triggered
 }

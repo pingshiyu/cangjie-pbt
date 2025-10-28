@@ -65,9 +65,9 @@ func pbtMain() : Int64 {
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
     let buf : List<String> = ArrayList<String>()
 
-    ignoreScope {interpRand(randomness, {=> 
+    runRand(randomness, {=> 
         expandS(buf, true, { => perform S()})
-    })}
+    })
 
     print("final string generated: ")
     print(showList("", buf))
@@ -86,9 +86,9 @@ func pbtMain() : Int64 {
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(3),
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
     let buf2 : List<String> = ArrayList<String>()
-    interpScope(rtb, { => interpRandTree(randomness2, rtb, {=> 
+    runRandTracked(randomness2, rtb, {=> 
         expandS(buf2, true, { => perform S()})
-    })})
+    })
 
     println("Generated: " + showList("", buf2))
     rt.print()
@@ -121,6 +121,15 @@ func pbtMain() : Int64 {
     let reduced : RandTree = ReduceToSimpleStrategy().makeReduction(randomness3, startsWith1)
     println("Reduced RandTree:")
     reduced.print()
+
+    println("As a list: " + showList(", ", reduced.randList()))
+
+    println("Result of running with reduced RandTree:")
+    let buf4 = ArrayList<String>()
+    runRand(reduced.randList(), { =>
+        expandS(buf4, false, { => perform S() })
+    })
+    println(showList("", buf4))
 
     return 0
 }
