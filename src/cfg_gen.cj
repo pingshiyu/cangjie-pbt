@@ -2,6 +2,7 @@ package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
+import std.sort.*
 
 // context free grammar expansion (randomised)
 class S <: Command<Unit> {}
@@ -141,6 +142,44 @@ func pbtMain() : Int64 {
     runRandTracked(rand5, rtb5, {=> expandS(buf5, false, { => perform S() })})
     println("Tree after reduction:")
     rt5.print()
+
+    printSep()
+
+    // basic algorithm: sort a list by storing it in a set and then retrieving elements from it
+    // one by one, bottom first
+    func crappySort(l : List<Int8>) : List<Int8> {
+        let ls : Set<Int8> = HashSet<Int8>(l)
+        let shortl = ArrayList<Int8>(ls)
+        sort(shortl, descending: true, stable: true)
+        return shortl
+    }
+
+    // generate a random list and use it to test some sorting algorithm
+    // property to test
+    func testCrappySort(l : List<Int8>) : Bool {
+        return crappySort(l).size == l.size
+    }
+    // algorithm has a bug of course: elements deleted if duplicates exists
+
+    let gtor = randList(1000, randInt8)
+
+    // property to reveal this bug: len(list) == len(sorted(list))
+    let bugTrigger : Option<RandTree> = findCounterExample(42, 100, gtor, testCrappySort)
+
+    // check that bugTrigger triggers the bug
+    let reducedTrigger: RandTree = match (bugTrigger) {
+        case Some(bt) => // bug triggered
+            // reduce the BugTrigger
+            ReduceToSimpleStrategy().makeReduction(
+                bt.randList(), 
+                { => !testCrappySort(gtor()) })
+        case None => throw Exception("bug should have been triggered.")
+    }
+    
+    // show the generated smaller test case
+    println("smallest bug-triggering test-case is: ")
+    let smaller : List<Int8> = runRand(reducedTrigger.randList(), gtor)
+    println(showList(", ", smaller))
 
     return 0
 }

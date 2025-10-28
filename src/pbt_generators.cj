@@ -8,11 +8,12 @@ func rand() : RUnit {
     perform Rand()
 }
 
-func randBool() : Bool {
-withScope("randBool()", { => 
+// p denotes the probability of being true.
+func randBool(p : Float64) : Bool {
+withScope("randBool(${p})", { => 
     let i = rand()
-    let v = i > 0
-    return v // such that reductions towards 0 => turns this false
+    let trueLimit = 128.0 * (1.0 - p) // abs(v) above this => true
+    return Float64(abs(Int16(i))) > trueLimit // such that reductions towards 0 => turns this false
 })}
 
 func randInt8(): Int8 { 
@@ -45,7 +46,7 @@ withScope("randNat()", { =>
     var keepGoing : Bool = false
     do {
         ns.add(UInt64(rand()))
-        keepGoing = randBool()
+        keepGoing = randBool(0.50)
     } while (keepGoing)
     
     // final value is \sum (2^(4i) * ns[i])
@@ -62,16 +63,17 @@ withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")", { =>
     return v
 })}
 
-func randList<T>(g : () -> T) : List<T> {
+func randList<T>(eLen : Int64, g : () -> T) : () -> List<T> {{ =>
 withScope("randList<T>(g)", { => 
+    let p : Float64 = 1.0 - 1.0 / Float64(eLen)
     let l : List<T> = ArrayList<T>()
-    var cont: Bool = randBool()
+    var cont: Bool = randBool(p)
     while (cont) {
         l.add(g())
-        cont = randBool()
+        cont = randBool(p)
     }
     return l
-})}
+})}}
 
 // generate a list of n numbers, with n randomly chosen.
 

@@ -2,6 +2,7 @@ package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
+import std.random.*
 
 class WrongArgumentException <: Exception {
     public WrongArgumentException(msg: String) {}
@@ -225,6 +226,16 @@ func interpRandTree<R>(rl : List<RUnit>, rt : Box<RandTree>, fn : () -> R) : R {
     }
 }
 
+func interpExtRandTree<R>(rs: Random, rt: Box<RandTree>, fn: () -> R) : R {
+    try {
+        fn()
+    } handle(_ : Rand) {
+        let i = rs.nextInt8()
+        rt.value.addR(i)
+        resume with i
+    }
+}
+
 func interpScope<R>(rt : Box<RandTree>, fn : () -> R) : R {
     try {
         fn ()
@@ -255,4 +266,21 @@ func runRandTracked<R>(rl: List<RUnit>, rt: Box<RandTree>, fn : () -> R): R {
     interpScope(rt, { => interpRandTree(rl, rt, fn)})
 }
 
-// how to write properties
+func runExtRandTracked<R>(r: Random, rt: Box<RandTree>, fn : () -> R) : R {
+    interpScope(rt, { => interpExtRandTree(r, rt, fn)} )
+}
+
+// returns Some(rt) if a bug was found, None otherwise.
+func findCounterExample<R>(seed: UInt64, iters: Int, g : () -> R, fn: (R) -> Bool): Option<RandTree> {
+    // try to find a counterexample, then return evidence of bug being triggered
+    let r : Random = Random(seed)
+    for (_ in 0..iters) {
+        let rt : RandTree = RandTree(None, None)
+        let rtb : Box<RandTree> = Box(rt)
+        let gv: R = runExtRandTracked(r, rtb, g)
+        if (!fn(gv)) {
+            return Some(rt)
+        }
+    }
+    return None
+}
