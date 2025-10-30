@@ -113,6 +113,71 @@ the PBT framework. Each use case corresponds to a distinct handler for the effec
 
 # Example Executions
 
+## Buggy Sorting Algorithm
+Suppose we have a sorting algorithm that is obviously wrong:
+```
+func crappySort(l : List<Int8>) : List<Int8> {
+    let ls : Set<Int8> = HashSet<Int8>(l)
+    let shortl = ArrayList<Int8>(ls)
+    sort(shortl, descending: true, stable: true)
+    return shortl
+}
+```
+It is wrong because it deletes repeated elements in the sorted list.
+
+We write a desired property (in Cangjie), in that it should keep the size of the list constant.
+```
+func testCrappySort(l : List<Int8>) : Bool {
+    return crappySort(l).size == l.size
+}
+```
+
+We supply it with a generator of random lists, we just want them to have length 10. This is
+using a pre-written generator of lists, composed with a generator of ints.
+```
+let gtor = randList(10, randInt8)
+```
+
+Running the generator on the property reveals this bug-triggering input:
+```
+let bugTrigger : Option<List<Int8>> = findCounterExample(42, 100, gtor, testCrappySort)
+match (bugTrigger) {
+    case Some(bt) => 
+        println("bug found, the bug-triggering input is:");
+        println(showList(", ", bt));
+    case None =>
+        throw Exception("oops we should've triggered a bug.")
+}
+```
+
+But it is rather big... It is not clear why this triggered the bug.
+```
+bug found, the bug-triggering input is:
+[34, -52, 74, 55, -53, -5, 55, -40, -79, -90, 80, 92, 33, -90, 18, -78, -40, -27, 72, -7, -75, -74, 23, -28, -12, 0, 45, -100, 70, -71, 106, -94]
+```
+
+We run the reducer to find a smaller input that still triggers the bug:
+```
+let smallBugTrigger: Option<List<Int8>> = findSmallCounterExample(42, 100, gtor, testCrappySort)
+match (smallBugTrigger) {
+    case Some(bt) => // bug triggered
+        // reduce the BugTrigger
+        println("the reduced bug-triggering input is:");
+        println(showList(", ", bt));
+    case None => 
+        throw Exception("bug should have been triggered.")
+}
+```
+
+Ahh, much better.
+```
+the reduced bug-triggering input is:
+[0, 0]
+```
+
+## Finding a random input with a property
+We don't need to strictly use the random generators as reducers. We can also use them as optimisers to find 
+some output of the generator that satisfies a property.
 
 # Future Work
 - Generic optimisation framework, rather than just reductions
