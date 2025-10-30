@@ -110,6 +110,13 @@ the PBT framework. Each use case corresponds to a distinct handler for the effec
     - During genration and reduction: similar to `EnterScope`, but move to the parent of the 
         current node.
     - During output: ignore this effect, as in the `EnterScope` case.
+- `OutOfRand :: () -> ()`
+    - This effect is called when there are no randomness left (when passing a finite sequence),
+        and is handled like an exception.
+    - During reduction: handles and performs some default behaviour, as it means the reduction
+        applied have resulted in more randomness being consumed (thus a _more_ complex input
+        being generated). We should abandon here. 
+    - During output: raises an error if we ran out of randomness (when given a finite sequence)
 
 # Example Executions
 
