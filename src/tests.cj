@@ -48,24 +48,3 @@ class AddTests {
         }
     }
 }
-
-// prog that handles One with true
-/* THE FOLLOWING CODE RETURNS BROKEN LLVM IR. !!!! */
-/* 
-import stdx.effect.*
-
-class One <: Command<Unit> {}
-
-func one() {
-    perform One()
-}
-
-func handleOneAsFalse(fn : () -> Unit): Bool {
-    let res = try { fn(); true } handle(e: One) {
-        false
-    }
-    res
-}
-
-let res = handleOneAsFalse(one)
-*/
