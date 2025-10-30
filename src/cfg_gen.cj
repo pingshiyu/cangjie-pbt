@@ -116,7 +116,7 @@ func pbtMain() : Int64 {
         return bufu[0] == "1"
     }
 
-    let reduced : RandTree = ReduceToSimpleStrategy().makeReduction(randomness3, startsWith1)
+    let reduced : RandTree = makeReduction(randomness3, startsWith1)
     println("Reduced RandTree:")
     reduced.print()
 
@@ -145,7 +145,8 @@ func pbtMain() : Int64 {
 
     printSep()
 
-    // basic algorithm: sort a list by storing it in a set and then retrieving elements from it
+    // Example case as a tester of properties:
+    // API: basic algorithm, sort a list by storing it in a set and then retrieving elements from it
     // one by one, bottom first
     func crappySort(l : List<Int8>) : List<Int8> {
         let ls : Set<Int8> = HashSet<Int8>(l)
@@ -164,26 +165,26 @@ func pbtMain() : Int64 {
     let gtor = randList(10, randInt8)
 
     // property to reveal this bug: len(list) == len(sorted(list))
-    let bugTrigger : Option<RandTree> = findCounterExample(42, 100, gtor, testCrappySort)
+    let bugTrigger : Option<List<Int8>> = findCounterExample(42, 100, gtor, testCrappySort)
+    match (bugTrigger) {
+        case Some(bt) => 
+            println("bug found, the bug-triggering input is:");
+            println(showList(", ", bt));
+        case None =>
+            throw Exception("oops we should've triggered a bug.")
+    }
+
+    let smallBugTrigger: Option<List<Int8>> = findSmallCounterExample(42, 100, gtor, testCrappySort)
 
     // check that bugTrigger triggers the bug
-    let reducedTrigger: RandTree = match (bugTrigger) {
+    match (smallBugTrigger) {
         case Some(bt) => // bug triggered
             // reduce the BugTrigger
-            println("bug found, the bug-trigger input is:");
-            println(showList(", ", runRand(bt.randList(), gtor)));
-            ReduceToSimpleStrategy().makeReduction(
-                bt.randList(), 
-                { => !testCrappySort(gtor()) })
-        case None => throw Exception("bug should have been triggered.")
+            println("the reduced bug-triggering input is:");
+            println(showList(", ", bt));
+        case None => 
+            throw Exception("bug should have been triggered.")
     }
-    
-    // show the generated smaller test case
-    println("reduced bug-triggering test-case is: ")
-    let smaller : List<Int8> = runRand(reducedTrigger.randList(), gtor)
-    println(showList(", ", smaller))
-    println("triggered by:")
-    reducedTrigger.print()
 
     return 0
 }

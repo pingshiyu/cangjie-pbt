@@ -276,7 +276,7 @@ func runExtRandTracked<R>(r: Random, rt: Box<RandTree>, fn : () -> R) : R {
 }
 
 // returns Some(rt) if a bug was found, None otherwise.
-func findCounterExample<R>(seed: UInt64, iters: Int, g : () -> R, fn: (R) -> Bool): Option<RandTree> {
+func findCounterExampleTree<R>(seed: UInt64, iters: Int, g : () -> R, fn: (R) -> Bool): Option<RandTree> {
     // try to find a counterexample, then return evidence of bug being triggered
     let r : Random = Random(seed)
     for (_ in 0..iters) {
@@ -288,4 +288,32 @@ func findCounterExample<R>(seed: UInt64, iters: Int, g : () -> R, fn: (R) -> Boo
         }
     }
     return None
+}
+
+func findCounterExample<R>(seed: UInt64, iters: Int, g: () -> R, fn: (R) -> Bool): Option<R> {
+    let bugTrigger : Option<RandTree> = findCounterExampleTree(seed, iters, g, fn)
+    match (bugTrigger) {
+        case Some(bt) => Some(runRand(bt.randList(), g))
+        case None => None
+    }
+}
+
+func findSmallCounterExample<R>(seed: UInt64, iters: Int, g: () -> R, fn: (R) -> Bool): Option<R> {
+    // property to reveal this bug: len(list) == len(sorted(list))
+    let bugTrigger : Option<RandTree> = findCounterExampleTree(seed, iters, g, fn)
+
+    // check that bugTrigger triggers the bug
+    match (bugTrigger) {
+        case Some(bt) => // bug triggered
+            // reduce the BugTrigger
+            // println("bug found, the bug-trigger input is:");
+            // println(showList(", ", runRand(bt.randList(), gtor)));
+
+            // default strategy for reducing triggers
+            let reducedTrigger = makeReduction(bt.randList(), { => !fn(g()) })
+            let smaller : R = runRand(reducedTrigger.randList(), g)
+            return Some(smaller)
+        case None => 
+            return None
+    }
 }

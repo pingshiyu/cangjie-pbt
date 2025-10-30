@@ -71,7 +71,6 @@ withScope("randList<T>(g)", { =>
 })}}
 
 // generate a list of n numbers, with n randomly chosen.
-
 func randIntListAlt() : List<Int64> {
 withScope("randIntList()", { =>
     let n : Int64 = abs(randInt64())

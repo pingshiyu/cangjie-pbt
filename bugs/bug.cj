@@ -1,5 +1,3 @@
-package cangjie_experiments
-
 import stdx.effect.*
 
 class BuggyException <: Command<Unit> {}
