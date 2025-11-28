@@ -58,6 +58,14 @@ withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")") {
     return v
 }}
 
+func randElem<T>(ls : List<T>): T {
+withScope("randElem<T>(ls)") {
+    let n : Int64 = ls.size
+    let ix: Int64 = randIntRange(0, n)
+    return ls[ix] 
+}
+}
+
 func randList<T>(eLen : Int64, g : () -> T) : () -> List<T> {{ =>
 withScope("randList<T>(g)") { 
     let p : Float64 = 1.0 - 1.0 / Float64(eLen)
