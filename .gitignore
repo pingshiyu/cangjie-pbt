@@ -1,6 +1,6 @@
 .vscode
 .cache
-target/release/*
+target
 
 # cangjie
 *.cjo
