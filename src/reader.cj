@@ -70,7 +70,7 @@ func fakeTestGetDepth() {
     println("depth: ${fe.ask()}")
 }
 
-main() {
+func mainReader() {
     println("Effects-based implementation:")
     testGetDepth()
 

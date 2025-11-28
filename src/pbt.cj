@@ -241,6 +241,14 @@ func interpExtRandTree<R>(rs: Random, rt: Box<RandTree>, fn: () -> R) : R {
     }
 }
 
+func interpExtRand<R>(rs: Random, fn : () -> R) : R {
+    try {
+        fn()
+    } handle(_ : Rand) {
+        resume with rs.nextInt8()
+    }
+}
+
 func interpScope<R>(rt : Box<RandTree>, fn : () -> R) : R {
     try {
         fn ()
@@ -267,12 +275,20 @@ func runRand<R>(rl : List<RUnit>, fn : () -> R) : R {
     ignoreScope { interpRand(rl, fn) }
 }
 
+func runExtRand<R>(r: Random, fn : () -> R) : R {
+    ignoreScope { interpExtRand(r, fn) }
+}
+
 func runRandTracked<R>(rl: List<RUnit>, rt: Box<RandTree>, fn : () -> R): R {
-    interpScope(rt, { => interpRandTree(rl, rt, fn)})
+    interpScope(rt) {
+        interpRandTree(rl, rt, fn)
+    }
 }
 
 func runExtRandTracked<R>(r: Random, rt: Box<RandTree>, fn : () -> R) : R {
-    interpScope(rt, { => interpExtRandTree(r, rt, fn)} )
+    interpScope(rt) {
+        interpExtRandTree(r, rt, fn)
+    }
 }
 
 // returns Some(rt) if a bug was found, None otherwise.
