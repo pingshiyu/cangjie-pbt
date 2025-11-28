@@ -15,5 +15,5 @@
 
 [target.aarch64-apple-darwin]                                                     
   [target.aarch64-apple-darwin.bin-dependencies]
-    path-option = ["/Users/jacob/projects/cangjie-build/software/darwin_aarch64_cjnative/dynamic/stdx"]
+    path-option = ["/Users/jacob/projects/resumptions-dev/software/darwin_aarch64_cjnative/dynamic/stdx"]
 

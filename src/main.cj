@@ -50,7 +50,7 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
     }
 }
 
-main(): Int64 {
+func main2(): Int64 {
     try {
         println(1)
         let x = perform Eff()
@@ -179,12 +179,12 @@ main(): Int64 {
     }
 
     // R ! Effs -> R ! Effs
-    func countEffs<Cmd, Res, R>(_: Res, fn: () -> R): R where Cmd <: Command<Res> {
+    func countEffs<Cmd, Res, R>(_: Res, rInit: R, fn: () -> R): R where Cmd <: Command<Res> {
         let count : Box<Int> = Box(0)
+        let rv : Box<R> = Box(rInit);
         try {
-            let rv = fn()
+            rv.value = fn()
             println("counted ${count.value} of One effects.")
-            return rv
         } handle (e: Cmd) {
             count.value = count.value + 1
             // reperform the effect
@@ -192,6 +192,7 @@ main(): Int64 {
             // let o2: Res = countEffs<Cmd, Res, Res>(def, { => e.defaultImpl() })
             resume with o
         }
+        return rv.value
     }
 
     // R ! (One : Effs) -> R ! Effs
@@ -203,7 +204,9 @@ main(): Int64 {
         }
     }
 
-    interpOne({ => countEffs<One, Unit, Unit>((), { => severalEffs() })})
+    interpOne { 
+        countEffs<One, Unit, Unit>((), (), { => severalEffs() })
+    }
     // expected: counted 3 of One effects
 
     printSep()
@@ -241,4 +244,3 @@ main(): Int64 {
 
     return 0
 }
-
