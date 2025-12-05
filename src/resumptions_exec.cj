@@ -74,12 +74,43 @@ class AddResumption<X, Y> <: Command<Unit> {
     AddResumption(let r: Resumption<X, Y>) {}
 }
 
+class Stash {}
+
+func handleStash<X, Y>(s: Stash, fn: (X) -> Y): (X) -> Y {{ x =>
+    try {
+        fn(x)
+    } handle(e: GetResumptions<Int64, Int64>) {
+
+    } handle(e: GetResumptions<Unit, Int64>) {
+
+    } handle(e: GetFns<Int64, Int64>) {
+
+    } handle(e: GetFns<Unit, Unit>) {
+
+    } handle(e: AddResumption<Int64, Int64>) {
+
+    } handle(e: AddResumption<Unit, Int64>) {
+
+    } handle(e: BackpocketGenerator<Int64>) {
+        resume with randSmallInt64()
+    } handle(e: BackpocketGenerator<Unit>) {
+        resume with ()
+    }
+}}
+
 func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x => 
+    /*
+    requires implementation of:
+    - GetResumptions<B, Y>
+    - GetResumptions<A, Y>
+    - GetFns<A, B>
+    - BackpocketGenerator<B>
+    */
     try {
         fn(x)
     } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
         // stash the current resumption
-        AddResumption(r) // <B, Y>
+        perform AddResumption(r) // <B, Y>
         let hasFns = !(perform GetFns<A, B>()).isEmpty()
         let hasPreRs = !(perform GetResumptions<A, Y>()).isEmpty()
         // POST: !(perform GetResumptions<B, Y>()).isEmpty()
