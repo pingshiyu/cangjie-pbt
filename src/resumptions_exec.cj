@@ -68,38 +68,40 @@ func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>,
     }
 }}
 
-func handleUnknown<X, A, B, Y>(
-    fns: List<(A) -> B>, 
-    pre_rs: List<Resumption<A, Y>>, 
-    post_rs: List<Resumption<B, Y>>, 
-    fn: (X) -> Y): (X) -> Y {{ x => 
+class GetFns<A, B> <: Command<List<(A) -> B>> {}
+class GetResumptions<X, Y> <: Command<List<Resumption<X, Y>>> {}
+class AddResumption<X, Y> <: Command<Unit> {
+    AddResumption(let r: Resumption<X, Y>) {}
+}
+
+func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x => 
     try {
         fn(x)
     } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
         // stash the current resumption
-        post_rs.add(r)
-        // POST: !isEmpty(post_rs)
+        AddResumption(r) // <B, Y>
+        let hasFns = !(perform GetFns<A, B>()).isEmpty()
+        let hasPreRs = !(perform GetResumptions<A, Y>()).isEmpty()
+        // POST: !(perform GetResumptions<B, Y>()).isEmpty()
 
         let path = randBool(0.50)
-        if (path && !fns.isEmpty()) {
+        if (path && hasFns) {
             // start a new function, then use post_rs
-            let chosenR = randElem(post_rs)
-            let chosenF = randElem(fns)
-            resume chosenR with chosenF(f.arg)
-        } else if (!pre_rs.isEmpty()) {
+            let chosenF = randElem<(A) -> B>(perform GetFns<A, B>())
+            let chosenR = randElem<Resumption<B, Y>>(perform GetResumptions<B, Y>())
+            handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(chosenF(f.arg))
+        } else if (hasPreRs) {
             // resume directly from the function inputs
-            let chosenR = randElem(pre_rs)
-            resume chosenR with f.arg
+            let chosenR = randElem<Resumption<A, Y>>(perform GetResumptions<A, Y>())
+            handleUnknown<A, A, B, Y>({ a : A => resume chosenR with a })(f.arg)
         } else {
             // backup: resume by generating a fresh random argument to r
             let b0 = perform BackpocketGenerator<B>()
-            let chosenR = randElem(post_rs)
-            resume chosenR with b0
+            let chosenR = randElem<Resumption<B, Y>>(perform GetResumptions<B, Y>())
+            handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(b0)
         }
     }
 }}
-
-// func handleUnknowns<X>() {}
 
 func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
     let r: Random = Random()
