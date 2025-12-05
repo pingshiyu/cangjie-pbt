@@ -24,12 +24,10 @@ withScope("randSmallInt64()") {
 func randInt64() : Int64 { 
 withScope("randInt64()") {
     // Int64 consists of 8 consecutive bytes from the randomness list
-    let vs : List<RUnit> = ArrayList<RUnit>()
-    for (_ in 0..8) { vs.add(rand()) }
     var finalVal : Int64 = 0
-    for (i in 0..8) {
-        // interpret int in big-endian form
-        finalVal += Int64(vs[7-i]) * 2**UInt64(8*i)
+    for (i in 0..7) {
+        let x = rand()
+        finalVal = finalVal * Int64(2 ** 8) + Int64(x)
     }
     return finalVal
 }}
