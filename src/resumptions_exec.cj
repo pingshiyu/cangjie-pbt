@@ -15,86 +15,78 @@ func fake<A, B>(a : A): B {
     return perform UnknownFunction<A, B>(a)
 }
 
-func runBackpocket<R>(fn: () -> R) {
-    try {
-        fn()
-    } handle(bg : BackpocketGenerator<Int64>) {
-        resume with randSmallInt64()
-    }
-}
-
-func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, fn : () -> Unit): Unit {
-    try {
-        fn()
-    } handle(f : UnknownFunction<Unit, Unit>, r : Resumption<Unit, Unit>) {
-        // either resume an existing resumption, or start a function in the list
-        rs.add(r)
-
-        let path = randBool(0.50)
-        if (path && !fns.isEmpty()) {
-            let chosenFnIx = randIntRange(0, fns.size)
-            let chosenFn = fns.remove(at:chosenFnIx)
-            handleUnknownUnit(fns, rs) {
-                chosenFn()
-            }
-        } else {
-            // resume a random existing continuation
-            let chosenRIx = randIntRange(0, rs.size)
-            let chosenR = rs.remove(at:chosenRIx)
-            handleUnknownUnit(fns, rs) {
-                resume chosenR
-            }
-        }
-    }
-}
-
-func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>, fn: (A) -> A): (A) -> A {{ a =>
-    try {
-        fn(a)
-    } handle(f: UnknownFunction<A, A>, r: Resumption<A, A>) {
-        rs.add(r)
-
-        let path = randBool(0.50)
-        if (path && !fns.isEmpty()) {
-            let chosenFIx = randIntRange(0, fns.size)
-            let chosenF = fns.remove(at:chosenFIx)
-            handleUnknownSingleType<A>(fns, rs, chosenF)(f.arg)
-        } else {
-            let chosenRIx = randIntRange(0, rs.size)
-            let chosenR = rs.remove(at:chosenRIx)
-            let a0 = perform BackpocketGenerator<A>()
-            handleUnknownSingleType<A>(fns, rs, { x: A => resume chosenR with x })(a0)
-        }
-    }
-}}
-
-class GetFns<A, B> <: Command<List<(A) -> B>> {}
-class GetResumptions<X, Y> <: Command<List<Resumption<X, Y>>> {}
+class GetRandomFn<A, B> <: Command<(A) -> B> {}
+class GetRandomResumption<X, Y> <: Command<Resumption<X, Y>> {}
 class AddResumption<X, Y> <: Command<Unit> {
     AddResumption(let r: Resumption<X, Y>) {}
 }
+class HasResumptions<X, Y> <: Command<Bool> {}
+class HasFns<A, B> <: Command<Bool> {}
 
-class Stash {}
+class Stash<Y> {
+    var intFns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
+    var unitFns: List<(Unit) -> Unit> = ArrayList<(Unit) -> Unit>()
+    var intRes: List<Resumption<Int64, Y>> = ArrayList<Resumption<Int64, Y>>()
+    var unitRes : List<Resumption<Unit, Y>> = ArrayList<Resumption<Unit, Y>>()
 
-func handleStash<X, Y>(s: Stash, fn: (X) -> Y): (X) -> Y {{ x =>
+    init(intFns: List<(Int64) -> Int64>) {
+        this.intFns = intFns
+    }
+}
+
+func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
     try {
-        fn(x)
-    } handle(e: GetResumptions<Int64, Int64>) {
-
-    } handle(e: GetResumptions<Unit, Int64>) {
-
-    } handle(e: GetFns<Int64, Int64>) {
-
-    } handle(e: GetFns<Unit, Unit>) {
-
-    } handle(e: AddResumption<Int64, Int64>) {
-
-    } handle(e: AddResumption<Unit, Int64>) {
-
+        fn()
+    } handle(e: GetRandomResumption<Int64, Y>) {
+        let chosenRIx = randIntRange(0, s.intRes.size)
+        let chosenR = s.intRes.remove(at:chosenRIx)
+        resume with chosenR
+    } handle(e: GetRandomResumption<Unit, Y>) {
+        let chosenRIx = randIntRange(0, s.unitRes.size)
+        let chosenR = s.unitRes.remove(at:chosenRIx)
+        resume with chosenR
+    } handle(e: GetRandomFn<Int64, Int64>) {
+        let chosenFIx = randIntRange(0, s.intFns.size)
+        let chosenF = s.intFns.remove(at:chosenFIx)
+        resume with chosenF
+    } handle(e: GetRandomFn<Unit, Unit>) {
+        let chosenFIx = randIntRange(0, s.unitFns.size)
+        let chosenF = s.unitFns.remove(at:chosenFIx)
+        resume with chosenF
+    } handle(e: HasFns<Int64, Int64>) {
+        resume with !s.intFns.isEmpty()
+    } handle(e: HasFns<Unit, Unit>) {
+        resume with !s.unitFns.isEmpty()
+    } handle(e: AddResumption<Int64, Y>) {
+        s.intRes.add(e.r)
+        resume with ()
+    } handle(e: AddResumption<Unit, Y>) {
+        s.unitRes.add(e.r)
+        resume with ()
     } handle(e: BackpocketGenerator<Int64>) {
         resume with randSmallInt64()
     } handle(e: BackpocketGenerator<Unit>) {
         resume with ()
+    }
+}
+
+func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
+    try {
+        fn(a)
+    } handle(f: UnknownFunction<A, A>, r: Resumption<A, Y>) {
+        perform AddResumption<A, Y>(r)
+        let hasFns = perform HasFns<A, A>()
+
+        let path = randBool(0.50)
+        if (path && hasFns) {
+            let chosenF = perform GetRandomFn<A, A>()
+            let chosenR = perform GetRandomResumption<A, Y>()
+            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(chosenF(f.arg))
+        } else {
+            let chosenR = perform GetRandomResumption<A, Y>()
+            let a0 = perform BackpocketGenerator<A>()
+            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(a0)
+        }
     }
 }}
 
@@ -111,58 +103,34 @@ func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
     } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
         // stash the current resumption
         perform AddResumption(r) // <B, Y>
-        let hasFns = !(perform GetFns<A, B>()).isEmpty()
-        let hasPreRs = !(perform GetResumptions<A, Y>()).isEmpty()
+        let hasFns = !(perform HasFns<A, B>())
+        let hasPreRs = !(perform HasResumptions<A, Y>())
         // POST: !(perform GetResumptions<B, Y>()).isEmpty()
 
         let path = randBool(0.50)
         if (path && hasFns) {
+            println("got here, starting a random function")
             // start a new function, then use post_rs
-            let chosenF = randElem<(A) -> B>(perform GetFns<A, B>())
-            let chosenR = randElem<Resumption<B, Y>>(perform GetResumptions<B, Y>())
+            let chosenF = perform GetRandomFn<A, B>()
+            let chosenR = perform GetRandomResumption<B, Y>()
             handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(chosenF(f.arg))
         } else if (hasPreRs) {
+            println("got here, resume random resumption")
             // resume directly from the function inputs
-            let chosenR = randElem<Resumption<A, Y>>(perform GetResumptions<A, Y>())
+            let chosenR = perform GetRandomResumption<A, Y>()
             handleUnknown<A, A, B, Y>({ a : A => resume chosenR with a })(f.arg)
         } else {
             // backup: resume by generating a fresh random argument to r
+            println("got here, generate random arg")
             let b0 = perform BackpocketGenerator<B>()
-            let chosenR = randElem<Resumption<B, Y>>(perform GetResumptions<B, Y>())
+            let chosenR = perform GetRandomResumption<B, Y>()
             handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(b0)
         }
+    } catch (e : UnhandledCommandException) {
+        println("exception caught: ${e}")
+        throw e
     }
 }}
-
-func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
-    let r: Random = Random()
-    let rs: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
-    let fn = fns[0]
-
-    // wrap the lambda `p` around handleResumes deeply
-    // func executeP(i: Int64, p: (Int64) -> Int64): (Int64) -> Int64 {
-    //     if (i <= 0) {
-    //         return p
-    //     } else {
-    //         return executeP(i-1, handleResume<Int64, Int64, Int64, Int64>(fns, rs, p))
-    //     }
-    // }
-
-    // return executeP(500, fn)(0)
-    runExtRand(r) {
-        runBackpocket { 
-            handleUnknownSingleType<Int64>(fns, rs, fn)(randSmallInt64())
-        }
-    } 
-}
-
-func executeUnitUnit(fns: List<() -> Unit>) {
-    let rs : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
-    handleUnknownUnit(fns, rs) {
-        let fn = fns.remove(at:0)
-        fn()
-    }
-}
 
 main() {
     // only unit types:
@@ -177,90 +145,12 @@ main() {
         fns.add(fint_add(i))
         fns.add(fint_mul(i))
     }
-    executeIntInt(fns)
-}
 
-func fint_add(a: Int64): (Int64) -> Int64 {{ i =>
-    println("fadd${a}: 1, ${i}")
-    let i0 = fake<Int64, Int64>(i)
-    println("fadd${a}: 2, ${i0}")
-    let i1 = fake<Int64, Int64>(i0)
-    println("fadd${a}: 3, ${i1}")
-    let i2 = fake<Int64, Int64>(i1)
-    println("fadd${a}: 4, ${i2}")
-    let i3 = fake<Int64, Int64>(i2)
-    println("fadd${a}: 5, ${i3}")
-    let i4 = fake<Int64, Int64>(i3)
-    println("fadd${a}: return ${i} + ${i4}")
-    return i + i4
-}}
-
-func fint_mul(a: Int64): (Int64) -> Int64 {{ i => 
-    println("fmul${a}: 1, ${i}")
-    let i0 = fake<Int64, Int64>(i)
-    println("fmul${a}: 2, ${i0}")
-    let i1 = fake<Int64, Int64>(i0)
-    println("fmul${a}: 3, ${i1}")
-    let i2 = fake<Int64, Int64>(i1)
-    println("fmul${a}: 4, ${i2}")
-    let i3 = fake<Int64, Int64>(i2)
-    println("fmul${a}: 5, ${i3}")
-    let i4 = fake<Int64, Int64>(i3)
-    println("fmul${a}: return ${i} * ${i4}")
-    return i * i4
-}}
-
-func fi(i : Int64): () -> Unit {{ =>
-    println("f${i}: 1")
-    fake<Unit, Unit>(())
-    println("f${i}: 2")
-    fake<Unit, Unit>(())
-    println("f${i}: 3")
-    fake<Unit, Unit>(())
-    println("f${i}: 4")
-    fake<Unit, Unit>(())
-    println("f${i}: 5")
-    fake<Unit, Unit>(())
-}}
-
-// what to do:
-// start with 2 functions
-// unknowns gets replaced by effects
-// continuations gets stored 
-// rerun randomly
-
-// initially we just do unit->unit continuations
-// and then we try to track the types and run the correct one
-
-// perhaps then we can follow the deduction rules to get the 
-// correct spec for execution?
-
-func mapE<A, B>(f : (A) -> B, ls : List<A>): List<B> {
-    let oElems: List<B> = ArrayList<B>()
-    for (e in ls) {
-        oElems.add(f(e))
-    }
-    return oElems
-}
-
-func map2E<A, B>(f : (A) -> B, ls : List<A>): List<B> {
-    let oElems: List<B> = ArrayList<B>()
-    let i : Int64 = 0
-    for (e in ls) {
-        if (i % 2 == 0) {
-            continue // introduced bug: this skips every other element
+    let r : Random = Random()
+    let s : Stash<Int64> = Stash<Int64>(fns)
+    runExtRand(r) {
+        handleStash(s) {
+            handleUnknownSimplified<Int64, Int64, Int64>(fns[0])(randSmallInt64())
         }
-        oElems.add(f(e))
-    }
-    return oElems
-}
-
-func filterE<A>(f : (A) -> Bool, ls : List<A>): List<A> {
-    let oElems: List<A> = ArrayList<A>()
-    for (e in ls) {
-        if (f(e)) {
-            oElems.add(e)
-        }
-    }
-    return oElems
+    } 
 }
