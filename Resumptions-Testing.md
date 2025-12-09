@@ -48,6 +48,25 @@ func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, 
 }
 ```
 
+and then to actually execute, we populate `fn` initially with several functions, and `rs` initially being
+empty.
+Here we use another handler `runExtRand` which deals with the randomness that we needed during execution
+(we used `randBool` and `randIntRange` effects).
+
+```javascript
+func executeUnitUnit() {
+    let r: Random = Random()
+    let fns: List<() -> Unit> = ArrayList<() -> Unit>([fi(1), fi(2), fi(3), fi(4)])
+    let rs : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
+    runExtRand(r) {
+        handleUnknownUnit(fns, rs) {
+            let fn = fns.remove(at:0)
+            fn()
+        }
+    }
+}
+```
+
 ## Generalising to Arbitrary Functions `A -> A`
 However, the above only executes functions of type `Unit -> Unit`.
 
@@ -181,6 +200,11 @@ extending the implementations seen here.
 `HandleUnknown` itself doesn't actually need to change: separation of concerns, and code is easier
 to understand / read / maintain.
 
+Moreover, this is a handler of _only_ immediate effects, meaning we incur minimal runtime cost by using
+effects for our implementation, in the meanwhile buying a lot more extensibility and maintainability.
+
+Such a pattern of separating the deferred and immediate handlers can be useful elsewhere too.
+
 ## Supporting Arbitrary Types
 Building on the previous implementation, it becomes a type-puzzles problem to generalise it to arbitrary
 function types `UnknownFunction<A, B>`. 
@@ -227,6 +251,26 @@ func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
     }
 }}
 ```
+
+Executing this can be done in a similar way to the `Unit -> Unit` case:
+```javascript
+let fns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
+for (i in 0..50) {
+    // prepare 100 random functions
+    fns.add(fint_add(i))
+    fns.add(fint_mul(i))
+}
+
+let r : Random = Random()
+let s : Stash<Int64> = Stash<Int64>(fns)
+runExtRand(r) {
+    handleStash(s) {
+        handleUnknown<Int64, Int64, Int64, Int64>(fns[0])(randSmallInt64())
+    }
+} 
+```
+where we need to be careful when layering our handlers: ensuring that the handlers
+in higher scopes is going to catch the effects emitted by lower scopes.
 
 ## On Termination
 Todo.
