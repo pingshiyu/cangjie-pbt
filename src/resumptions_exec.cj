@@ -20,8 +20,8 @@ class GetRandomResumption<X, Y> <: Command<Resumption<X, Y>> {}
 class AddResumption<X, Y> <: Command<Unit> {
     AddResumption(let r: Resumption<X, Y>) {}
 }
-class HasResumptions<X, Y> <: Command<Bool> {}
-class HasFns<A, B> <: Command<Bool> {}
+class HasResumption<X, Y> <: Command<Bool> {}
+class HasFn<A, B> <: Command<Bool> {}
 
 class Stash<Y> {
     var intFns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
@@ -34,6 +34,8 @@ class Stash<Y> {
     }
 }
 
+/* This provides all of the implementation for the immediate effects used.
+*/
 func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
     try {
         fn()
@@ -51,9 +53,9 @@ func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
         let chosenRIx = randIntRange(0, s.unitRes.size)
         let chosenR = s.unitRes.remove(at:chosenRIx)
         resume with chosenR
-    } handle(e: HasResumptions<Unit, Y>) {
+    } handle(e: HasResumption<Unit, Y>) {
         resume with s.unitRes.isEmpty()
-    } handle(e: HasResumptions<Int64, Y>) {
+    } handle(e: HasResumption<Int64, Y>) {
         resume with s.intRes.isEmpty()
     } handle(e: GetRandomFn<Int64, Int64>) {
         let chosenFIx = randIntRange(0, s.intFns.size)
@@ -63,9 +65,9 @@ func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
         let chosenFIx = randIntRange(0, s.unitFns.size)
         let chosenF = s.unitFns.remove(at:chosenFIx)
         resume with chosenF
-    } handle(e: HasFns<Int64, Int64>) {
+    } handle(e: HasFn<Int64, Int64>) {
         resume with !s.intFns.isEmpty()
-    } handle(e: HasFns<Unit, Unit>) {
+    } handle(e: HasFn<Unit, Unit>) {
         resume with !s.unitFns.isEmpty()
     } handle(e: BackpocketGenerator<Int64>) {
         resume with randSmallInt64()
@@ -74,7 +76,11 @@ func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
     }
 }
 
-/* v3: generalised to general outside function of type X -> Y
+/* v3: generalised to general outside function of type X -> Y.
+Moreover, we now no longer need to pass in the state-based parameters to track the 
+pending resumptions. Instead, we treat those as effects too and handle them outside
+using a base-level immediate handler. 
+This function only handles the deferred effect (UnknownFunction)
 Issues:
 - Still only executes inner library functions of type A -> A
 */
@@ -83,7 +89,7 @@ func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
         fn(a)
     } handle(f: UnknownFunction<A, A>, r: Resumption<A, Y>) {
         perform AddResumption<A, Y>(r)
-        let hasFns = perform HasFns<A, A>()
+        let hasFns = perform HasFn<A, A>()
 
         let path = randBool(0.50)
         if (path && hasFns) {
@@ -107,9 +113,9 @@ Issues:
 func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x => 
     /*
     requires implementation of:
-    - GetResumptions<B, Y>
-    - GetResumptions<A, Y>
-    - GetFns<A, B>
+    - {Add, GetRandom}Resumption<B, Y>
+    - {Has, GetRandom}Resumption<A, Y>
+    - {Has, GetRandom}Fn<A, B>
     - BackpocketGenerator<B>
     */
     try {
@@ -117,8 +123,8 @@ func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
     } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
         // stash the current resumption
         perform AddResumption<B, Y>(r) // <B, Y>
-        let hasFns = perform HasFns<A, B>()
-        let hasPreRs = perform HasResumptions<A, Y>()
+        let hasFns = perform HasFn<A, B>()
+        let hasPreRs = perform HasResumption<A, Y>()
         // POST: !(perform GetResumptions<B, Y>()).isEmpty()
 
         let path = randBool(0.20)
