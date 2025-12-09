@@ -12,6 +12,11 @@ func runBackpocket<R>(fn: () -> R) {
     }
 }
 
+/* v1: runs functions of type Unit -> Unit
+Issues: 
+- only runs unit type functions. Only way to get interactions here is through side effects of the 
+functions.
+*/
 func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, fn : () -> Unit): Unit {
     try {
         fn()
@@ -37,6 +42,21 @@ func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, 
     }
 }
 
+func executeUnitUnit(fns: List<() -> Unit>) {
+    let rs : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
+    handleUnknownUnit(fns, rs) {
+        let fn = fns.remove(at:0)
+        fn()
+    }
+}
+
+/* v2: generalisation to single types A -> A. Now functions can interact through passing their input/output 
+arguments.
+Issues:
+- still limited to A -> A types. 
+- also requires outside function to be type A -> A (function that wraps the unknown function)
+- interpretation of effects is cumbersome: need to keep passing parameters in to the interpretation function
+*/
 func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>, fn: (A) -> A): (A) -> A {{ a =>
     try {
         fn(a)
@@ -80,14 +100,6 @@ func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
             //     handleUnknownSingleType<Int64>(fn)(i1)
             // })(randSmallInt64())
         }
-    }
-}
-
-func executeUnitUnit(fns: List<() -> Unit>) {
-    let rs : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
-    handleUnknownUnit(fns, rs) {
-        let fn = fns.remove(at:0)
-        fn()
     }
 }
 
@@ -149,15 +161,6 @@ func fi(i : Int64): () -> Unit {{ =>
     println("f${i}: 5")
     fake<Unit, Unit>(())
 }}
-
-// what to do:
-// start with 2 functions
-// unknowns gets replaced by effects
-// continuations gets stored 
-// rerun randomly
-
-// initially we just do unit->unit continuations
-// and then we try to track the types and run the correct one
 
 // perhaps then we can follow the deduction rules to get the 
 // correct spec for execution?

@@ -37,6 +37,12 @@ class Stash<Y> {
 func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
     try {
         fn()
+    } handle(e: AddResumption<Int64, Y>) {
+        s.intRes.add(e.r)
+        resume with ()
+    } handle(e: AddResumption<Unit, Y>) {
+        s.unitRes.add(e.r)
+        resume with ()
     } handle(e: GetRandomResumption<Int64, Y>) {
         let chosenRIx = randIntRange(0, s.intRes.size)
         let chosenR = s.intRes.remove(at:chosenRIx)
@@ -45,6 +51,10 @@ func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
         let chosenRIx = randIntRange(0, s.unitRes.size)
         let chosenR = s.unitRes.remove(at:chosenRIx)
         resume with chosenR
+    } handle(e: HasResumptions<Unit, Y>) {
+        resume with s.unitRes.isEmpty()
+    } handle(e: HasResumptions<Int64, Y>) {
+        resume with s.intRes.isEmpty()
     } handle(e: GetRandomFn<Int64, Int64>) {
         let chosenFIx = randIntRange(0, s.intFns.size)
         let chosenF = s.intFns.remove(at:chosenFIx)
@@ -57,12 +67,6 @@ func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
         resume with !s.intFns.isEmpty()
     } handle(e: HasFns<Unit, Unit>) {
         resume with !s.unitFns.isEmpty()
-    } handle(e: AddResumption<Int64, Y>) {
-        s.intRes.add(e.r)
-        resume with ()
-    } handle(e: AddResumption<Unit, Y>) {
-        s.unitRes.add(e.r)
-        resume with ()
     } handle(e: BackpocketGenerator<Int64>) {
         resume with randSmallInt64()
     } handle(e: BackpocketGenerator<Unit>) {
@@ -70,6 +74,10 @@ func handleStash<Y>(s: Stash<Y>, fn: () -> Y): Y {
     }
 }
 
+/* v3: generalised to general outside function of type X -> Y
+Issues:
+- Still only executes inner library functions of type A -> A
+*/
 func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
     try {
         fn(a)
@@ -81,7 +89,8 @@ func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
         if (path && hasFns) {
             let chosenF = perform GetRandomFn<A, A>()
             let chosenR = perform GetRandomResumption<A, Y>()
-            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(chosenF(f.arg))
+            let fOut = handleUnknownSimplified<A, A, A>(chosenF)(f.arg)
+            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(fOut)
         } else {
             let chosenR = perform GetRandomResumption<A, Y>()
             let a0 = perform BackpocketGenerator<A>()
@@ -90,6 +99,11 @@ func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
     }
 }}
 
+/* v4: generalised to arbitrary library calls of type A -> B
+Issues:
+- sometimes causes seg faults
+- soemtimes causes internal error
+*/
 func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x => 
     /*
     requires implementation of:
@@ -102,43 +116,32 @@ func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
         fn(x)
     } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
         // stash the current resumption
-        perform AddResumption(r) // <B, Y>
-        let hasFns = !(perform HasFns<A, B>())
-        let hasPreRs = !(perform HasResumptions<A, Y>())
+        perform AddResumption<B, Y>(r) // <B, Y>
+        let hasFns = perform HasFns<A, B>()
+        let hasPreRs = perform HasResumptions<A, Y>()
         // POST: !(perform GetResumptions<B, Y>()).isEmpty()
 
-        let path = randBool(0.50)
+        let path = randBool(0.20)
         if (path && hasFns) {
-            println("got here, starting a random function")
             // start a new function, then use post_rs
             let chosenF = perform GetRandomFn<A, B>()
             let chosenR = perform GetRandomResumption<B, Y>()
-            handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(chosenF(f.arg))
+            let fOut = handleUnknown<A, A, B, B>(chosenF)(f.arg)
+            handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(fOut)
         } else if (hasPreRs) {
-            println("got here, resume random resumption")
             // resume directly from the function inputs
             let chosenR = perform GetRandomResumption<A, Y>()
             handleUnknown<A, A, B, Y>({ a : A => resume chosenR with a })(f.arg)
         } else {
             // backup: resume by generating a fresh random argument to r
-            println("got here, generate random arg")
             let b0 = perform BackpocketGenerator<B>()
             let chosenR = perform GetRandomResumption<B, Y>()
             handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(b0)
         }
-    } catch (e : UnhandledCommandException) {
-        println("exception caught: ${e}")
-        throw e
     }
 }}
 
 main() {
-    // only unit types:
-    // let fns: List<() -> Unit> = ArrayList<() -> Unit>([fi(1), fi(2), fi(3), fi(4)])
-    // runExtRand(r) {
-    //     executeUnitUnit(fns)
-    // }
-
     let fns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
     for (i in 0..50) {
         // prepare 100 random functions
@@ -150,7 +153,7 @@ main() {
     let s : Stash<Int64> = Stash<Int64>(fns)
     runExtRand(r) {
         handleStash(s) {
-            handleUnknownSimplified<Int64, Int64, Int64>(fns[0])(randSmallInt64())
+            handleUnknown<Int64, Int64, Int64, Int64>(fns[0])(randSmallInt64())
         }
     } 
 }
