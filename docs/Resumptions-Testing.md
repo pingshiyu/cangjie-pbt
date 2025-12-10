@@ -1,4 +1,19 @@
-# Testing Using Resumptions
+# Generating Random Functions Using Resumptions
+Whilst primitive types (with explicit constructors) can be randomly generated fairly easily,
+it is difficult to generate functions at random.
+
+Existing approaches include enumerating program ASTs, which is a large undertaking.
+Alternatively, QuickCheck's approach uses the fact that the type:
+ - `Gen (a -> b) ~= a -> Gen b`
+contains the same information. 
+So implementing a random generator of functions involves augmenting a generator of type `b` 
+using a known value of type `a`.
+
+We use the fact that effect handlers allows program executions to be paused, altered and 
+and resumed, to be a means to generate random behaviours in place of a function (something
+of type `A -> B`).
+
+More concretely, given input an existing function of type `A -> B`, that uses 
 
 ## Initial Implementation
 In place of a function of type `Unit -> Unit`, we use an effect `e` of type `Unit -> Unit`.
@@ -272,5 +287,15 @@ runExtRand(r) {
 where we need to be careful when layering our handlers: ensuring that the handlers
 in higher scopes is going to catch the effects emitted by lower scopes.
 
-## On Termination
-Todo.
+## On Termination and Complexity
+Suppose a single function terminates in `ns` steps, running a maximum of concurrent
+`nf` functions, starting from 1 function, and starting new functions with probability
+`p`.
+
+This has minimum runtime of `ns`, and maximum runtime of `ns * nf`, with higher 
+runtime based on the value of `p` chosen.
+
+We don't have a theoretical analysis of the runtime, however here is a plot of how the
+growth happens with `p` chosen.
+
+![](relation_simulate_p.png "Growth of Runtime with `p` Chosen")

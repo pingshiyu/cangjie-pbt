@@ -108,7 +108,7 @@ func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
 /* v4: generalised to arbitrary library calls of type A -> B
 Issues:
 - sometimes causes seg faults
-- soemtimes causes internal error
+- sometimes causes internal error
 */
 func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x => 
     /*
@@ -161,5 +161,5 @@ main() {
         handleStash(s) {
             handleUnknown<Int64, Int64, Int64, Int64>(fns[0])(randSmallInt64())
         }
-    } 
+    }
 }
