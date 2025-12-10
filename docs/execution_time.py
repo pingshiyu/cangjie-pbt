@@ -8,13 +8,16 @@ def simulate(fn_steps: int, init_nf: int, max_nf: int, p_add_f: float) -> int:
     ks = [0] * init_nf
 
     # probability 1/len(ks), increment ki, ki <= T; len(ks) <= F.
-    while ks[0] <= fn_steps:
+    while ks[0] < fn_steps:
         add_fn = r.random() < p_add_f
         if add_fn and len(ks) < max_nf:
             ks.append(1)
         else: 
-            # choose one of ks
-            i_ks = r.randrange(0, len(ks))
+            # index of incrementable ks terms
+            ks_arr = np.array(ks)
+            incrementable_ixs = np.argwhere(ks_arr < fn_steps).T[0]
+
+            i_ks = r.choice(incrementable_ixs)
             ks[i_ks] += 1
         steps += 1
     
