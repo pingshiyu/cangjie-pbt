@@ -37,11 +37,13 @@ if __name__ == '__main__':
     mean_steps = [relation_simulate_p(p) for p in p_values]
     
     plt.figure(figsize=(10, 6))
-    plt.plot(p_values, mean_steps, marker='o', linewidth=2)
+    plt.plot(p_values, mean_steps, marker='o', linewidth=2, label='mean steps')
+    plt.plot([0.0, 1.0], [5.0, 50.0], linestyle='--', color='gray', linewidth=1.5, label='linear relationship (0.0,5)→(1.0,50)')
     plt.xlabel('p (probability of adding f)', fontsize=12)
     plt.ylabel('Mean steps', fontsize=12)
     plt.title('Mean steps vs probability of adding function (p) (init_nf = 1, max_nf = 10, fn_steps = 5)', fontsize=14)
     plt.grid(True, alpha=0.3)
+    plt.legend()
     plt.tight_layout()
     plt.savefig('relation_simulate_p.png', dpi=150)
     plt.show()

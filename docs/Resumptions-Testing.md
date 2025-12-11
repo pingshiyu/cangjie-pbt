@@ -3,9 +3,11 @@ Whilst primitive types (with explicit constructors) can be randomly generated fa
 it is difficult to generate functions at random.
 
 Existing approaches include enumerating program ASTs, which is a large undertaking.
-Alternatively, QuickCheck's approach uses the fact that the type:
+Alternatively, QuickCheck's approach uses the fact that the types:
  - `Gen (a -> b) ~= a -> Gen b`
-contains the same information. 
+contains the same information (by expanding the definition of QuickCheck's 
+`Gen a ~ Seed -> Integer -> a`). 
+
 So implementing a random generator of functions involves augmenting a generator of type `b` 
 using a known value of type `a`.
 
@@ -295,7 +297,7 @@ Suppose a single function terminates in `ns` steps, running a maximum of concurr
 This has minimum runtime of `ns`, and maximum runtime of `ns * nf`, with higher 
 runtime based on the value of `p` chosen.
 
-We don't have a theoretical analysis of the runtime, however here is a plot of how the
-growth happens with `p` chosen.
+We don't have a theoretical analysis of the expected runtime, however here is a plot 
+of how the growth varies with `p`.
 
 ![](relation_simulate_p.png "Growth of Runtime with `p` Chosen")
