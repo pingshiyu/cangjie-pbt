@@ -92,7 +92,7 @@ func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
     // }
 
     // return executeP(500, fn)(0)
-    let s: Stash<Int64> = Stash(fns)
+    let s: Stash = Stash(fns)
     runExtRand(r) {
         runBackpocket {
             handleUnknownSingleType<Int64>(fns, rs, fn)(randSmallInt64())
@@ -102,6 +102,35 @@ func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
         }
     }
 }
+
+/* v3: generalised to general outside function of type X -> Y.
+Moreover, we now no longer need to pass in the state-based parameters to track the 
+pending resumptions. Instead, we treat those as effects too and handle them outside
+using a base-level immediate handler. 
+This function only handles the deferred effect (UnknownFunction)
+Issues:
+- Still only executes inner library functions of type A -> A
+*/
+func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
+    try {
+        fn(a)
+    } handle(f: UnknownFunction<A, A>, r: Resumption<A, Y>) {
+        perform AddResumption<A, Y>(r)
+        let hasFns = perform HasFn<A, A>()
+
+        let path = randBool(0.50)
+        if (path && hasFns) {
+            let chosenF = perform GetRandomFn<A, A>()
+            let chosenR = perform GetRandomResumption<A, Y>()
+            let fOut = handleUnknownSimplified<A, A, A>(chosenF)(f.arg)
+            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(fOut)
+        } else {
+            let chosenR = perform GetRandomResumption<A, Y>()
+            let a0 = perform BackpocketGenerator<A>()
+            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(a0)
+        }
+    }
+}}
 
 func main_old() {
     // only unit types:
