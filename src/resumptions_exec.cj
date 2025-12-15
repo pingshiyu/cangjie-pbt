@@ -28,6 +28,7 @@ class Stash {
     var unitFns: List<(Unit) -> Unit> = ArrayList<(Unit) -> Unit>()
     var intRes: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
     var unitRes : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
+    var lintRes : List<Resumption<Int64, List<Int64>>> = ArrayList<Resumption<Int64, List<Int64>>>()
 
     init(intFns: List<(Int64) -> Int64>) {
         this.intFns = intFns
@@ -45,6 +46,9 @@ func handleStash<Y>(s: Stash, fn: () -> Y): Y {
     } handle(e: AddResumption<Unit, Unit>) {
         s.unitRes.add(e.r)
         resume with ()
+    } handle(e: AddResumption<Int64, List<Int64>>) {
+        s.lintRes.add(e.r)
+        resume with ()
     } handle(e: GetRandomResumption<Int64, Int64>) {
         let chosenRIx = randIntRange(0, s.intRes.size)
         let chosenR = s.intRes.remove(at:chosenRIx)
@@ -53,10 +57,16 @@ func handleStash<Y>(s: Stash, fn: () -> Y): Y {
         let chosenRIx = randIntRange(0, s.unitRes.size)
         let chosenR = s.unitRes.remove(at:chosenRIx)
         resume with chosenR
+    } handle(e: GetRandomResumption<Int64, List<Int64>>) {
+        let chosenRIx = randIntRange(0, s.lintRes.size)
+        let chosenR = s.lintRes.remove(at:chosenRIx)
+        resume with chosenR
     } handle(e: HasResumption<Unit, Unit>) {
         resume with s.unitRes.isEmpty()
     } handle(e: HasResumption<Int64, Int64>) {
         resume with s.intRes.isEmpty()
+    } handle(e: HasResumption<Int64, List<Int64>>) {
+        resume with s.lintRes.isEmpty()
     } handle(e: GetRandomFn<Int64, Int64>) {
         let chosenFIx = randIntRange(0, s.intFns.size)
         let chosenF = s.intFns.remove(at:chosenFIx)
@@ -118,7 +128,7 @@ func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
     }
 }}
 
-main() {
+func main_run_resumptions_once() {
     let fns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
     for (i in 0..50) {
         // prepare 100 random functions
