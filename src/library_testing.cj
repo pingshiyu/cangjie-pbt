@@ -24,36 +24,56 @@ import std.random.*
 // std.collections.end_collection: forEach<T>(action: (T) -> Unit): (Iterable<T>) -> Unit
 
 // f(i) :: Int -> Int
-// filterE :: (A -> Bool) -> [A] -> [A]
-// mapE :: (A -> B) -> [A] -> [B]
-// map2E :: (A -> B) -> [A] -> [B]
+
+// isEmpty :: Iter A -> Bool
+
+// count :: Iter A -> Int64
+
+// contains :: A -> Iter A -> Bool
 
 // reduce :: (A -> A -> A) -> Iter A -> Option A
-// isEmpty :: Iter A -> Bool
-// count :: Iter A -> Int64
-// contains :: A -> Iter A -> Bool
-// any :: (A -> Bool) -> Iter A -> Bool
-// none :: (A -> Bool) -> Iter A -> Bool
-// forEach :: (A -> Unit) -> Iter A -> Unit
+func reduceFaked<A>(xs: List<A>): Option<A> {
+    return reduce<A>(unpack(fake<(A, A), A>))(xs)
+}
 
+// any :: (A -> Bool) -> Iter A -> Bool
+func anyFaked<A>(xs: List<A>): Bool {
+    println("any called")
+    return any(fake<A, Bool>)(xs)
+}
+
+// none :: (A -> Bool) -> Iter A -> Bool
+func noneFaked<A>(xs: List<A>): Bool {
+    println("none called")
+    return none(fake<A, Bool>)(xs)
+}
+
+// forEach :: (A -> Unit) -> Iter A -> Unit
+func forEachFaked<A>(xs: List<A>): Unit {
+    return forEach(fake<A, Unit>)(xs)
+}
+
+// filterE :: (A -> Bool) -> [A] -> [A]
 func filterEFaked<A>(xs : List<A>): List<A> {
     return filterE<A>(fake<A, Bool>, xs)
 }
 
+// mapE :: (A -> B) -> [A] -> [B]
 func mapEFaked<A, B>(xs : List<A>): List<B> {
     return mapE<A, B>(fake<A, B>, xs)
-} 
+}
 
+// map2E :: (A -> B) -> [A] -> [B]
 func map2EFaked<A, B>(xs : List<A>): List<B> {
     return map2E<A, B>(fake<A, B>, xs)
 }
 
 main() {
-    let fns_intint: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>([
-        fint_add(1),
-        fint_mul(2),
-        fint_mul(3),
-        fint_add(4)
+    let fns_intbool: List<(List<Int64>) -> List<Int64>> = ArrayList<(List<Int64>) -> List<Int64>>([
+        mapEFaked<Int64, Int64>
+    ])
+    let fns_intint : List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>([
+        fint_mul(0), fint_add(1), fint_mul(2), fint_add(3) 
     ])
 
     // doing this for mapE and map2E
@@ -63,8 +83,8 @@ main() {
         handleStash(s) {
             let input : List<Int64> = randList<Int64>(10, randInt64)()
             println("input: ${showList(", ", input)}")
-            handleUnknown<List<Int64>, Int64, Int64, List<Int64>>(mapEFaked<Int64, Int64>)(randList<Int64>(10, randInt64)())
-        }
+            handleUnknown<List<Int64>, Int64, Int64, List<Int64>>(mapEFaked<Int64, Int64>)(input)
+        } 
     }
 
     println("output: ${showList(", ", output)}")

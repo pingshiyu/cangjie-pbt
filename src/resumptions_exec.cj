@@ -22,10 +22,12 @@ class AddResumption<X, Y> <: Command<Unit> {
 }
 class HasResumption<X, Y> <: Command<Bool> {}
 class HasFn<A, B> <: Command<Bool> {}
+class HasFn_ <: Command<Bool> {}
 
 class Stash {
-    var intFns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
-    var unitFns: List<(Unit) -> Unit> = ArrayList<(Unit) -> Unit>()
+    var intFns : List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
+    var unitFns : List<(Unit) -> Unit> = ArrayList<(Unit) -> Unit>()
+    var lintFns : List<(List<Int64>) -> Bool> = ArrayList<(List<Int64>) -> Bool>()
     var intRes: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
     var unitRes : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
     var lintRes : List<Resumption<Int64, List<Int64>>> = ArrayList<Resumption<Int64, List<Int64>>>()
@@ -127,6 +129,54 @@ func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
         }
     }
 }}
+
+/* v5: supporting functions of different types to be used in the execution
+
+For function A -> B ... Y.
+We do either of these things:
+    - run a random library function of type A -> B, then a resumption of type B -> Y
+    - run a resumption of type A -> Y
+    - generate a B, then run a resumption of type B -> Y
+potentially also:
+    - generate a random type that we have resumptions for, and then resume that resumption
+        with our random value
+*/
+func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
+    // stash the current resumption
+    perform AddResumption<B, Y>(r) // <B, Y>
+    // idea: library fns might have Unknowns too, so those will trigger recursively
+    let hasFns = perform HasFn<A, B>()
+    let hasPreRs = perform HasResumption<A, Y>()
+    // POST: !(perform GetResumptions<B, Y>()).isEmpty()
+
+    let path = randBool(0.20)
+    if (path && hasFns) {
+        // start a new function, then use post_rs
+        let chosenF = perform GetRandomFn<A, B>()
+        let chosenR = perform GetRandomResumption<B, Y>()
+        let fOut = chosenF(f.arg)
+        resume chosenR with fOut
+    } else if (hasPreRs) {
+        // resume directly from the function inputs
+        let chosenR = perform GetRandomResumption<A, Y>()
+        resume chosenR with f.arg
+    } else {
+        // backup: resume by generating a fresh random argument to r
+        let b0 = perform BackpocketGenerator<B>()
+        let chosenR = perform GetRandomResumption<B, Y>()
+        resume chosenR with b0
+    }
+}
+
+func handleUnknownGen<Y>(fn: () -> Y): Y {
+    try {
+        fn()
+    } handle(f: UnknownFunction<Int64, Bool>, r: Resumption<Bool, Y>) {
+        handleUnknownGen<Y> { fillFunction<Int64, Bool, Y>(f, r) }
+    } handle(f: UnknownFunction<Int64, Int64>, r: Resumption<Int64, Y>) {
+        handleUnknownGen<Y> { fillFunction<Int64, Int64, Y>(f, r) }
+    }
+}
 
 func main_run_resumptions_once() {
     let fns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
