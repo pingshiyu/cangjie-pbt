@@ -20,9 +20,16 @@ class GetRandomResumption<X, Y> <: Command<Resumption<X, Y>> {}
 class AddResumption<X, Y> <: Command<Unit> {
     AddResumption(let r: Resumption<X, Y>) {}
 }
-class HasResumption<X, Y> <: Command<Bool> {}
-class HasFn<A, B> <: Command<Bool> {}
-class HasFn_ <: Command<Bool> {}
+class HasResumption<X, Y> <: Command<Bool> {
+    public func defaultImpl(): Bool {
+        return false
+    }
+}
+class HasFn<A, B> <: Command<Bool> {
+    public func defaultImpl(): Bool {
+        return false
+    }
+}
 
 class Stash {
     var intIntFns : List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
@@ -102,7 +109,7 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     perform AddResumption<B, Y>(r) // <B, Y>
     // idea: library fns might have Unknowns too, so those will trigger recursively
     let hasFns = perform HasFn<A, B>()
-    // let hasPreFs = perform HasFn<A, Y>()
+    let hasPreFs = perform HasFn<A, Y>()
     let hasPreRs = perform HasResumption<A, Y>()
     // POST: !(perform GetResumptions<B, Y>()).isEmpty()
 
@@ -118,11 +125,10 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
         // resume directly from the function inputs
         let chosenR = perform GetRandomResumption<A, Y>()
         resume chosenR with f.arg
-    } //else if (hasPreFs) {
-      //  let chosenF = perform GetRandomFn<A, Y>()
-      //  chosenF(f.arg)
-    //} 
-    else {
+    } else if (hasPreFs) {
+        let chosenF = perform GetRandomFn<A, Y>()
+        chosenF(f.arg)
+    } else {
         // backup: resume by generating a fresh random argument to r
         let b0 = perform BackpocketGenerator<B>()
         let chosenR = perform GetRandomResumption<B, Y>()
