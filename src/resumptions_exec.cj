@@ -4,17 +4,27 @@ import stdx.effect.*
 import std.collection.*
 import std.random.*
 
+class UnhandledInstance <: Exception {
+    public init(msg: String) {
+        super(msg)
+    }
+
+    public open override func getClassName(): String {
+        "UnhandledInstance"
+    }
+}
+
 // UnknownFunction :: A -> B
 class UnknownFunction<A, B> <: Command<B> {
     public UnknownFunction(let arg : A) {}
     public func defaultImpl() : B {
-        throw Exception("Unhandled instance of UnknownFunction")
+        throw UnhandledInstance("UnknownFunction")
     }
 }
 
 class BackpocketGenerator<B> <: Command<B> {
     public func defaultImpl() : B {
-        throw Exception("Unhandled instance of BackpocketGenerator")
+        throw UnhandledInstance("BackpocketGenerator")
     }
 }
 
@@ -24,20 +34,20 @@ func fake<A, B>(a : A): B {
 
 class GetRandomFn<A, B> <: Command<(A) -> B> {
     public func defaultImpl() : (A) -> B {
-        throw Exception("Unhandled instance of GetRandomFn")
+        throw UnhandledInstance("GetRandomFn")
     }
 }
 
 class GetRandomResumption<X, Y> <: Command<Resumption<X, Y>> {
     public func defaultImpl() : Resumption<X, Y> {
-        throw Exception("Unhandled instance of GetRandomResumption")
+        throw UnhandledInstance("GetRandomResumption")
     }
 }
 
 class AddResumption<X, Y> <: Command<Unit> {
     AddResumption(let r: Resumption<X, Y>) {}
     public func defaultImpl() : Unit {
-        throw Exception("Unhandled instance of AddResumption")
+        throw UnhandledInstance("AddResumption")
     }
 }
 
