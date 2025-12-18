@@ -132,6 +132,48 @@ func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
     }
 }}
 
+/* v4: generalised to arbitrary library calls of type A -> B
+Issues:
+- sometimes causes seg faults
+- sometimes causes internal error
+*/
+func handleUnknownABType<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x => 
+    /*
+    requires implementation of:
+    - {Add, GetRandom}Resumption<B, Y>
+    - {Has, GetRandom}Resumption<A, Y>
+    - {Has, GetRandom}Fn<A, B>
+    - BackpocketGenerator<B>
+    */
+    try {
+        fn(x)
+    } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
+        // stash the current resumption
+        perform AddResumption<B, Y>(r) // <B, Y>
+        let hasFns = perform HasFn<A, B>()
+        let hasPreRs = perform HasResumption<A, Y>()
+        // POST: !(perform GetResumptions<B, Y>()).isEmpty()
+
+        let path = randBool(0.20)
+        if (path && hasFns) {
+            // start a new function, then use post_rs
+            let chosenF = perform GetRandomFn<A, B>()
+            let chosenR = perform GetRandomResumption<B, Y>()
+            let fOut = handleUnknownABType<A, A, B, B>(chosenF)(f.arg)
+            handleUnknownABType<B, A, B, Y>({ b : B => resume chosenR with b })(fOut)
+        } else if (hasPreRs) {
+            // resume directly from the function inputs
+            let chosenR = perform GetRandomResumption<A, Y>()
+            handleUnknownABType<A, A, B, Y>({ a : A => resume chosenR with a })(f.arg)
+        } else {
+            // backup: resume by generating a fresh random argument to r
+            let b0 = perform BackpocketGenerator<B>()
+            let chosenR = perform GetRandomResumption<B, Y>()
+            handleUnknownABType<B, A, B, Y>({ b : B => resume chosenR with b })(b0)
+        }
+    }
+}}
+
 func main_old() {
     // only unit types:
     // let fns: List<() -> Unit> = ArrayList<() -> Unit>([fi(1), fi(2), fi(3), fi(4)])
@@ -146,6 +188,24 @@ func main_old() {
         fns.add(fint_mul(i))
     }
     executeIntInt(fns)
+}
+
+func main_run_resumptions_once() {
+    let fns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
+    for (i in 0..50) {
+        // prepare 100 random functions
+        fns.add(fint_add(i))
+        fns.add(fint_mul(i))
+    }
+
+    let r : Random = Random()
+    let s : Stash = Stash()
+    s.intIntFns = fns
+    runExtRand(r) {
+        handleStash(s) {
+            handleUnknownABType<Int64, Int64, Int64, Int64>(fns[0])(randSmallInt64())
+        }
+    }
 }
 
 func fint_add(a: Int64): (Int64) -> Int64 {{ i =>

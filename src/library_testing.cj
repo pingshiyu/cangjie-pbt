@@ -129,7 +129,7 @@ main() {
     ])
 
     let r : Random = Random()
-    let output: List<Int64> = runExtRand(r) { handleStash(s) { handleUnknownGen {
+    let output: List<Int64> = runExtRand(r) { handleStash(s) { handleUnknown {
         let input : List<Int64> = randList<Int64>(10, randInt64)()
         println("input: ${showList(", ", input)}")
         map2EFaked(input)

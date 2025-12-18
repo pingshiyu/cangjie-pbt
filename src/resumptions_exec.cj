@@ -87,48 +87,6 @@ func handleStash<Y>(s: Stash, fn: () -> Y): Y {
     }
 }
 
-/* v4: generalised to arbitrary library calls of type A -> B
-Issues:
-- sometimes causes seg faults
-- sometimes causes internal error
-*/
-func handleUnknown<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x => 
-    /*
-    requires implementation of:
-    - {Add, GetRandom}Resumption<B, Y>
-    - {Has, GetRandom}Resumption<A, Y>
-    - {Has, GetRandom}Fn<A, B>
-    - BackpocketGenerator<B>
-    */
-    try {
-        fn(x)
-    } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
-        // stash the current resumption
-        perform AddResumption<B, Y>(r) // <B, Y>
-        let hasFns = perform HasFn<A, B>()
-        let hasPreRs = perform HasResumption<A, Y>()
-        // POST: !(perform GetResumptions<B, Y>()).isEmpty()
-
-        let path = randBool(0.20)
-        if (path && hasFns) {
-            // start a new function, then use post_rs
-            let chosenF = perform GetRandomFn<A, B>()
-            let chosenR = perform GetRandomResumption<B, Y>()
-            let fOut = handleUnknown<A, A, B, B>(chosenF)(f.arg)
-            handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(fOut)
-        } else if (hasPreRs) {
-            // resume directly from the function inputs
-            let chosenR = perform GetRandomResumption<A, Y>()
-            handleUnknown<A, A, B, Y>({ a : A => resume chosenR with a })(f.arg)
-        } else {
-            // backup: resume by generating a fresh random argument to r
-            let b0 = perform BackpocketGenerator<B>()
-            let chosenR = perform GetRandomResumption<B, Y>()
-            handleUnknown<B, A, B, Y>({ b : B => resume chosenR with b })(b0)
-        }
-    }
-}}
-
 /* v5: supporting functions of different types to be used in the execution
 We need to fill a function A -> B, eventually resuming something that yields Y.
 We do either of these things:
@@ -144,6 +102,7 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     perform AddResumption<B, Y>(r) // <B, Y>
     // idea: library fns might have Unknowns too, so those will trigger recursively
     let hasFns = perform HasFn<A, B>()
+    // let hasPreFs = perform HasFn<A, Y>()
     let hasPreRs = perform HasResumption<A, Y>()
     // POST: !(perform GetResumptions<B, Y>()).isEmpty()
 
@@ -159,7 +118,11 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
         // resume directly from the function inputs
         let chosenR = perform GetRandomResumption<A, Y>()
         resume chosenR with f.arg
-    } else {
+    } //else if (hasPreFs) {
+      //  let chosenF = perform GetRandomFn<A, Y>()
+      //  chosenF(f.arg)
+    //} 
+    else {
         // backup: resume by generating a fresh random argument to r
         let b0 = perform BackpocketGenerator<B>()
         let chosenR = perform GetRandomResumption<B, Y>()
@@ -167,34 +130,16 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     }
 }
 
-func handleUnknownGen<Y>(fn: () -> Y): Y {
+func handleUnknown<Y>(fn: () -> Y): Y {
     try {
         fn()
     } handle(f: UnknownFunction<Int64, Bool>, r: Resumption<Bool, Y>) {
-        handleUnknownGen<Y> { fillFunction<Int64, Bool, Y>(f, r) }
+        handleUnknown<Y> { fillFunction<Int64, Bool, Y>(f, r) }
     } handle(f: UnknownFunction<Int64, Int64>, r: Resumption<Int64, Y>) {
-        handleUnknownGen<Y> { fillFunction<Int64, Int64, Y>(f, r) }
+        handleUnknown<Y> { fillFunction<Int64, Int64, Y>(f, r) }
     } handle(f: UnknownFunction<List<Int64>, Bool>, r: Resumption<Bool, Y>) {
-        handleUnknownGen<Y> { fillFunction<List<Int64>, Bool, Y>(f, r) }
+        handleUnknown<Y> { fillFunction<List<Int64>, Bool, Y>(f, r) }
     } handle(f: UnknownFunction<List<Int64>, List<Int64>>, r: Resumption<List<Int64>, Y>) {
-        handleUnknownGen<Y> { fillFunction<List<Int64>, List<Int64>, Y>(f, r) }
-    }
-}
-
-func main_run_resumptions_once() {
-    let fns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
-    for (i in 0..50) {
-        // prepare 100 random functions
-        fns.add(fint_add(i))
-        fns.add(fint_mul(i))
-    }
-
-    let r : Random = Random()
-    let s : Stash = Stash()
-    s.intIntFns = fns
-    runExtRand(r) {
-        handleStash(s) {
-            handleUnknown<Int64, Int64, Int64, Int64>(fns[0])(randSmallInt64())
-        }
+        handleUnknown<Y> { fillFunction<List<Int64>, List<Int64>, Y>(f, r) }
     }
 }

@@ -15,7 +15,13 @@ We use the fact that effect handlers allows program executions to be paused, alt
 and resumed, to be a means to generate random behaviours in place of a function (something
 of type `A -> B`).
 
-More concretely, given input an existing function of type `A -> B`, that uses 
+More concretely, when we're faced with an unknown function of type `A -> B`, and given a 
+cohort of existing functions `A -> B` (themselves may also contain unknown functions), we
+either:
+ - run one of the existing function, and resume a resumption `B -> R` on its output
+ - run an existing resumption `A -> R` on te inputs of the function
+ - as a backup, generate a random type `B` and resume a resumption `B -> R` (this is the
+ approach implemented in QuickCheck)
 
 ## Initial Implementation
 In place of a function of type `Unit -> Unit`, we use an effect `e` of type `Unit -> Unit`.
@@ -301,3 +307,65 @@ We don't have a theoretical analysis of the expected runtime, however here is a 
 of how the growth varies with `p`.
 
 ![](relation_simulate_p.png "Growth of Runtime with `p` Chosen")
+
+## One Handler, Many `UnkownFunction`s
+The previous implementation does not allow for the execution of multiple `UnknownFunction`
+types. 
+This limits its applicability: we can only use the handler to execute functions which all 
+have the same types.
+However, in a library, we would like to ideally execute, in the same run, multiple function
+and resumptions of different types.
+
+The reason we are fixed to a single function type is because in the recursion, we specifically
+recur with the handler for `UnknownFunction<A, B>`.
+
+In this version, we leave the job of recursion to a top-level handler:
+```javascript
+func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
+    // stash the current resumption
+    perform AddResumption<B, Y>(r) // <B, Y>
+    // idea: library fns might have Unknowns too, so those will trigger recursively
+    let hasFns = perform HasFn<A, B>()
+    let hasPreRs = perform HasResumption<A, Y>()
+    // POST: !(perform GetResumptions<B, Y>()).isEmpty()
+
+    let path = randBool(0.20)
+    println("hasFns=${hasFns}, hasPreRs=${hasPreRs}, path=${path}")
+    if (path && hasFns) {
+        // start a new function, then use post_rs
+        let chosenF = perform GetRandomFn<A, B>()
+        let chosenR = perform GetRandomResumption<B, Y>()
+        let fOut = chosenF(f.arg)
+        resume chosenR with fOut
+    } else if (hasPreRs) {
+        // resume directly from the function inputs
+        let chosenR = perform GetRandomResumption<A, Y>()
+        resume chosenR with f.arg
+    } else {
+        // backup: resume by generating a fresh random argument to r
+        let b0 = perform BackpocketGenerator<B>()
+        let chosenR = perform GetRandomResumption<B, Y>()
+        resume chosenR with b0
+    }
+}
+
+func handleUnknown<Y>(fn: () -> Y): Y {
+    try {
+        fn()
+    } handle(f: UnknownFunction<Int64, Bool>, r: Resumption<Bool, Y>) {
+        handleUnknown<Y> { fillFunction<Int64, Bool, Y>(f, r) }
+    } handle(f: UnknownFunction<Int64, Int64>, r: Resumption<Int64, Y>) {
+        handleUnknown<Y> { fillFunction<Int64, Int64, Y>(f, r) }
+    } handle(f: UnknownFunction<List<Int64>, Bool>, r: Resumption<Bool, Y>) {
+        handleUnknown<Y> { fillFunction<List<Int64>, Bool, Y>(f, r) }
+    } handle(f: UnknownFunction<List<Int64>, List<Int64>>, r: Resumption<List<Int64>, Y>) {
+        handleUnknown<Y> { fillFunction<List<Int64>, List<Int64>, Y>(f, r) }
+    }
+}
+```
+
+Note here, `handleUnknown` can now deal with an set of `UnknownFunction<A, B>` instances, and
+the implementation is also extensible to other function types. 
+Within `fillFunction`, the handler for the resumed program is left unspecified: effects generated
+here will be captured by the top-level handler `handleUnknown`, who is responsible for dispatching
+the correct handler of `UnknownFunction<A, B>`.
