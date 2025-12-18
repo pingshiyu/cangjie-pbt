@@ -115,6 +115,9 @@ main() {
     s.intIntFns = ArrayList<(Int64) -> Int64>([
         fint_mul(0), fint_add(1), fint_mul(2), fint_add(3) 
     ])
+    s.intBoolFns = ArrayList<(Int64) -> Bool>([
+        
+    ])
     s.lintLintFns = ArrayList<(List<Int64>) -> List<Int64>>([
         mapEFaked<Int64, Int64>, map2EFaked<Int64, Int64>, filterEFaked<Int64>
     ])
@@ -129,13 +132,13 @@ main() {
     ])
 
     let r : Random = Random()
-    let output: List<Int64> = runExtRand(r) { handleStash(s) { handleUnknown {
+    let output = runExtRand(r) { handleStash(s) { handleUnknown {
         let input : List<Int64> = randList<Int64>(10, randInt64)()
         println("input: ${showList(", ", input)}")
-        map2EFaked(input)
+        anyFaked(input)
     }}}
 
-    println("output: ${showList(", ", output)}")
+    println("output: ${output}")
 
     return 0
 }
