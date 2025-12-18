@@ -330,7 +330,6 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     // POST: !(perform GetResumptions<B, Y>()).isEmpty()
 
     let path = randBool(0.20)
-    println("hasFns=${hasFns}, hasPreRs=${hasPreRs}, path=${path}")
     if (path && hasFns) {
         // start a new function, then use post_rs
         let chosenF = perform GetRandomFn<A, B>()
@@ -369,3 +368,37 @@ the implementation is also extensible to other function types.
 Within `fillFunction`, the handler for the resumed program is left unspecified: effects generated
 here will be captured by the top-level handler `handleUnknown`, who is responsible for dispatching
 the correct handler of `UnknownFunction<A, B>`.
+
+We also explicitly treat the handler as a handler of `UnknownFunction<A, B>` terms, thus simplifying
+the handler's signature to use just one generic type argument, `Y`. 
+This also simplifies the usage of the handler:
+```javascript
+let s : Stash = Stash()
+s.intIntFns = ArrayList<(Int64) -> Int64>([
+    fint_mul(0), fint_add(1), fint_mul(2), fint_add(3) 
+])
+s.lintLintFns = ArrayList<(List<Int64>) -> List<Int64>>([
+    mapEFaked<Int64, Int64>, map2EFaked<Int64, Int64>, filterEFaked<Int64>
+])
+s.lintBoolFns = ArrayList<(List<Int64>) -> Bool>([
+    anyFaked<Int64>, noneFaked<Int64>, isEmpty<Int64>, contains<Int64>(0), contains<Int64>(1)
+])
+s.lintOintFns = ArrayList<(List<Int64>) -> Option<Int64>>([
+    reduceFaked<Int64>
+])
+s.lintIntFns = ArrayList<(List<Int64>) -> Int64>([
+    count<Int64>
+])
+
+let r : Random = Random()
+let output: List<Int64> = runExtRand(r) { handleStash(s) { handleUnknown {
+    let input : List<Int64> = randList<Int64>(10, randInt64)()
+    println("input: ${showList(", ", input)}")
+    map2EFaked(input)
+}}}
+
+println("output: ${showList(", ", output)}")
+```
+
+Note that the stash contains functions of arbitrary types, all of which may be executed (as long
+as there exists an opportunity to execute them).
