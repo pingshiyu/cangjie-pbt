@@ -80,7 +80,6 @@ func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>,
 func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
     let r: Random = Random()
     let rs: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
-    let fn = fns[0]
 
     // wrap the lambda `p` around handleResumes deeply
     // func executeP(i: Int64, p: (Int64) -> Int64): (Int64) -> Int64 {
@@ -92,16 +91,88 @@ func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
     // }
 
     // return executeP(500, fn)(0)
-    let s: Stash<Int64> = Stash(fns)
+    let s: Stash = Stash()
+    s.intIntFns = fns
     runExtRand(r) {
         runBackpocket {
-            handleUnknownSingleType<Int64>(fns, rs, fn)(randSmallInt64())
+            handleUnknownSingleType<Int64>(fns, rs, fns[0])(randSmallInt64())
             // handleStash<Int64, Int64>(s, { i =>
             //     handleUnknownSingleType<Int64>(fn)(i1)
             // })(randSmallInt64())
         }
     }
 }
+
+/* v3: generalised to general outside function of type X -> Y.
+Moreover, we now no longer need to pass in the state-based parameters to track the 
+pending resumptions. Instead, we treat those as effects too and handle them outside
+using a base-level immediate handler. 
+This function only handles the deferred effect (UnknownFunction)
+Issues:
+- Still only executes inner library functions of type A -> A
+*/
+func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
+    try {
+        fn(a)
+    } handle(f: UnknownFunction<A, A>, r: Resumption<A, Y>) {
+        perform AddResumption<A, Y>(r)
+        let hasFns = perform HasFn<A, A>()
+
+        let path = randBool(0.50)
+        if (path && hasFns) {
+            let chosenF = perform GetRandomFn<A, A>()
+            let chosenR = perform GetRandomResumption<A, Y>()
+            let fOut = handleUnknownSimplified<A, A, A>(chosenF)(f.arg)
+            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(fOut)
+        } else {
+            let chosenR = perform GetRandomResumption<A, Y>()
+            let a0 = perform BackpocketGenerator<A>()
+            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(a0)
+        }
+    }
+}}
+
+/* v4: generalised to arbitrary library calls of type A -> B
+Issues:
+- sometimes causes seg faults
+- sometimes causes internal error
+*/
+func handleUnknownABType<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x => 
+    /*
+    requires implementation of:
+    - {Add, GetRandom}Resumption<B, Y>
+    - {Has, GetRandom}Resumption<A, Y>
+    - {Has, GetRandom}Fn<A, B>
+    - BackpocketGenerator<B>
+    */
+    try {
+        fn(x)
+    } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
+        // stash the current resumption
+        perform AddResumption<B, Y>(r) // <B, Y>
+        let hasFns = perform HasFn<A, B>()
+        let hasPreRs = perform HasResumption<A, Y>()
+        // POST: !(perform GetResumptions<B, Y>()).isEmpty()
+
+        let path = randBool(0.20)
+        if (path && hasFns) {
+            // start a new function, then use post_rs
+            let chosenF = perform GetRandomFn<A, B>()
+            let chosenR = perform GetRandomResumption<B, Y>()
+            let fOut = handleUnknownABType<A, A, B, B>(chosenF)(f.arg)
+            handleUnknownABType<B, A, B, Y>({ b : B => resume chosenR with b })(fOut)
+        } else if (hasPreRs) {
+            // resume directly from the function inputs
+            let chosenR = perform GetRandomResumption<A, Y>()
+            handleUnknownABType<A, A, B, Y>({ a : A => resume chosenR with a })(f.arg)
+        } else {
+            // backup: resume by generating a fresh random argument to r
+            let b0 = perform BackpocketGenerator<B>()
+            let chosenR = perform GetRandomResumption<B, Y>()
+            handleUnknownABType<B, A, B, Y>({ b : B => resume chosenR with b })(b0)
+        }
+    }
+}}
 
 func main_old() {
     // only unit types:
@@ -117,6 +188,24 @@ func main_old() {
         fns.add(fint_mul(i))
     }
     executeIntInt(fns)
+}
+
+func main_run_resumptions_once() {
+    let fns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
+    for (i in 0..50) {
+        // prepare 100 random functions
+        fns.add(fint_add(i))
+        fns.add(fint_mul(i))
+    }
+
+    let r : Random = Random()
+    let s : Stash = Stash()
+    s.intIntFns = fns
+    runExtRand(r) {
+        handleStash(s) {
+            handleUnknownABType<Int64, Int64, Int64, Int64>(fns[0])(randSmallInt64())
+        }
+    }
 }
 
 func fint_add(a: Int64): (Int64) -> Int64 {{ i =>
@@ -161,36 +250,3 @@ func fi(i : Int64): () -> Unit {{ =>
     println("f${i}: 5")
     fake<Unit, Unit>(())
 }}
-
-// perhaps then we can follow the deduction rules to get the 
-// correct spec for execution?
-
-func mapE<A, B>(f : (A) -> B, ls : List<A>): List<B> {
-    let oElems: List<B> = ArrayList<B>()
-    for (e in ls) {
-        oElems.add(f(e))
-    }
-    return oElems
-}
-
-func map2E<A, B>(f : (A) -> B, ls : List<A>): List<B> {
-    let oElems: List<B> = ArrayList<B>()
-    let i : Int64 = 0
-    for (e in ls) {
-        if (i % 2 == 0) {
-            continue // introduced bug: this skips every other element
-        }
-        oElems.add(f(e))
-    }
-    return oElems
-}
-
-func filterE<A>(f : (A) -> Bool, ls : List<A>): List<A> {
-    let oElems: List<A> = ArrayList<A>()
-    for (e in ls) {
-        if (f(e)) {
-            oElems.add(e)
-        }
-    }
-    return oElems
-}
