@@ -4,6 +4,47 @@ import stdx.effect.*
 import std.collection.*
 import std.random.*
 
+// perhaps then we can follow the deduction rules to get the 
+// correct spec for execution?
+
+func mapE<A, B>(f : (A) -> B, ls : List<A>): List<B> {
+    println("reached mapE")
+    let oElems: List<B> = ArrayList<B>()
+    println("mapE: oElems prepared.")
+    for (e in ls) {
+        println("mapE: calling f")
+        oElems.add(f(e))
+        println("mapE: called f")
+    }
+    return oElems
+}
+
+func map2E<A, B>(f : (A) -> B, ls : List<A>): List<B> {
+    println("reached map2E")
+    let oElems: List<B> = ArrayList<B>()
+    var i : Int64 = 0
+    println("map2E: oElems prepared.")
+    for (e in ls) {
+        if (i % 2 != 0) {
+            println("map2E: calling f")
+            oElems.add(f(e))
+            println("map2E: called f")
+        }
+        i += 1
+    }
+    return oElems
+}
+
+func filterE<A>(f : (A) -> Bool, ls : List<A>): List<A> {
+    let oElems: List<A> = ArrayList<A>()
+    for (e in ls) {
+        if (f(e)) {
+            oElems.add(e)
+        }
+    }
+    return oElems
+}
+
 // import functions from the std
 // need some basic generators for basic types
 // we can use generators for function types: 
@@ -30,6 +71,7 @@ import std.random.*
 // count :: Iter A -> Int64
 
 // contains :: A -> Iter A -> Bool
+// containsFaked: create a function that will generate a random `x` and be `contains x` 
 
 // reduce :: (A -> A -> A) -> Iter A -> Option A
 func reduceFaked<A>(xs: List<A>): Option<A> {
@@ -69,23 +111,29 @@ func map2EFaked<A, B>(xs : List<A>): List<B> {
 }
 
 main() {
-    let fns_intbool: List<(List<Int64>) -> List<Int64>> = ArrayList<(List<Int64>) -> List<Int64>>([
-        mapEFaked<Int64, Int64>
-    ])
-    let fns_intint : List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>([
+    let s : Stash = Stash()
+    s.intIntFns = ArrayList<(Int64) -> Int64>([
         fint_mul(0), fint_add(1), fint_mul(2), fint_add(3) 
     ])
+    s.lintLintFns = ArrayList<(List<Int64>) -> List<Int64>>([
+        mapEFaked<Int64, Int64>, map2EFaked<Int64, Int64>, filterEFaked<Int64>
+    ])
+    s.lintBoolFns = ArrayList<(List<Int64>) -> Bool>([
+        anyFaked<Int64>, noneFaked<Int64>, isEmpty<Int64>, contains<Int64>(0), contains<Int64>(1)
+    ])
+    s.lintOintFns = ArrayList<(List<Int64>) -> Option<Int64>>([
+        reduceFaked<Int64>
+    ])
+    s.lintIntFns = ArrayList<(List<Int64>) -> Int64>([
+        count<Int64>
+    ])
 
-    // doing this for mapE and map2E
     let r : Random = Random()
-    let s : Stash = Stash(fns_intint)
-    let output : List<Int64> = runExtRand(r) {
-        handleStash(s) {
-            let input : List<Int64> = randList<Int64>(10, randInt64)()
-            println("input: ${showList(", ", input)}")
-            handleUnknown<List<Int64>, Int64, Int64, List<Int64>>(mapEFaked<Int64, Int64>)(input)
-        } 
-    }
+    let output: List<Int64> = runExtRand(r) { handleStash(s) { handleUnknownGen {
+        let input : List<Int64> = randList<Int64>(10, randInt64)()
+        println("input: ${showList(", ", input)}")
+        map2EFaked(input)
+    }}}
 
     println("output: ${showList(", ", output)}")
 

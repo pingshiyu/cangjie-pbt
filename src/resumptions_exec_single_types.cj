@@ -80,7 +80,6 @@ func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>,
 func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
     let r: Random = Random()
     let rs: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
-    let fn = fns[0]
 
     // wrap the lambda `p` around handleResumes deeply
     // func executeP(i: Int64, p: (Int64) -> Int64): (Int64) -> Int64 {
@@ -92,10 +91,11 @@ func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
     // }
 
     // return executeP(500, fn)(0)
-    let s: Stash = Stash(fns)
+    let s: Stash = Stash()
+    s.intIntFns = fns
     runExtRand(r) {
         runBackpocket {
-            handleUnknownSingleType<Int64>(fns, rs, fn)(randSmallInt64())
+            handleUnknownSingleType<Int64>(fns, rs, fns[0])(randSmallInt64())
             // handleStash<Int64, Int64>(s, { i =>
             //     handleUnknownSingleType<Int64>(fn)(i1)
             // })(randSmallInt64())
@@ -190,36 +190,3 @@ func fi(i : Int64): () -> Unit {{ =>
     println("f${i}: 5")
     fake<Unit, Unit>(())
 }}
-
-// perhaps then we can follow the deduction rules to get the 
-// correct spec for execution?
-
-func mapE<A, B>(f : (A) -> B, ls : List<A>): List<B> {
-    let oElems: List<B> = ArrayList<B>()
-    for (e in ls) {
-        oElems.add(f(e))
-    }
-    return oElems
-}
-
-func map2E<A, B>(f : (A) -> B, ls : List<A>): List<B> {
-    let oElems: List<B> = ArrayList<B>()
-    let i : Int64 = 0
-    for (e in ls) {
-        if (i % 2 == 0) {
-            continue // introduced bug: this skips every other element
-        }
-        oElems.add(f(e))
-    }
-    return oElems
-}
-
-func filterE<A>(f : (A) -> Bool, ls : List<A>): List<A> {
-    let oElems: List<A> = ArrayList<A>()
-    for (e in ls) {
-        if (f(e)) {
-            oElems.add(e)
-        }
-    }
-    return oElems
-}
