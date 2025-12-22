@@ -4,6 +4,14 @@ import stdx.effect.*
 import std.collection.*
 import std.random.*
 
+func asList<A>(it: Iterable<A>): List<A> {
+    let o: List<A> = ArrayList<A>()
+    for (e in it) {
+        o.add(e)
+    }
+    return o
+}
+
 // perhaps then we can follow the deduction rules to get the 
 // correct spec for execution?
 
@@ -106,6 +114,10 @@ func filterEFaked<A>(xs : List<A>): List<A> {
     return filterE<A>(fake<A, Bool>, xs)
 }
 
+func filterFaked<A>(xs: List<A>): List<A> {
+    asList(filter<A>(fake<A, Bool>)(xs))
+}
+
 // mapE :: (A -> B) -> [A] -> [B]
 func mapEFaked<A, B>(xs : List<A>): List<B> {
     return mapE<A, B>(fake<A, B>, xs)
@@ -116,6 +128,18 @@ func map2EFaked<A, B>(xs : List<A>): List<B> {
     return map2E<A, B>(fake<A, B>, xs)
 }
 
+func mapFaked<A, B>(xs: List<A>): List<B> {
+    asList(map(fake<A, B>)(xs))
+}
+
+func filterMapFaked<A, B>(xs: List<A>): List<B> {
+    asList(filterMap<A, B>(fake<A, ?B>)(xs))
+}
+
+func flatMapFaked<A, B>(xs: List<A>): List<B> {
+    asList(flatMap(fake<A, Iterable<B>>)(xs))
+}
+
 main() {
     let s : Stash_ = Stash_()
     s.intIntFns.setStash(ArrayList<(Int64) -> Int64>([
@@ -124,14 +148,20 @@ main() {
     s.intBoolFns.setStash(ArrayList<(Int64) -> Bool>([
         
     ]))
+    s.intUnitFns.setStash(ArrayList<(Int64) -> Unit>([
+
+    ]))
     s.lintLintFns.setStash(ArrayList<(List<Int64>) -> List<Int64>>([
-        mapEFaked<Int64, Int64>, map2EFaked<Int64, Int64>, filterEFaked<Int64>
+        mapEFaked<Int64, Int64>, map2EFaked<Int64, Int64>, mapFaked<Int64, Int64>, 
+        filterEFaked<Int64>, filterFaked<Int64>, 
+        filterMapFaked<Int64, Int64>
     ]))
     s.lintBoolFns.setStash(ArrayList<(List<Int64>) -> Bool>([
-        anyFaked<Int64>, noneFaked<Int64>, allFaked<Int64>, isEmpty<Int64>, contains<Int64>(0), contains<Int64>(1)
+        anyFaked<Int64>, noneFaked<Int64>, allFaked<Int64>, 
+        isEmpty<Int64>, contains<Int64>(0), contains<Int64>(1), contains<Int64>(-1)
     ]))
     s.lintOintFns.setStash(ArrayList<(List<Int64>) -> Option<Int64>>([
-        reduceFaked<Int64>
+        reduceFaked<Int64>, max<Int64>, min<Int64>, first<Int64>, last<Int64>
     ]))
     s.lintIntFns.setStash(ArrayList<(List<Int64>) -> Int64>([
         count<Int64>

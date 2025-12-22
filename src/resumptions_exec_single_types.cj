@@ -174,6 +174,22 @@ func handleUnknownABType<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
     }
 }}
 
+class Stash {
+    var intIntFns : List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
+    var intBoolFns : List<(Int64) -> Bool> = ArrayList<(Int64) -> Bool>()
+    var unitUnitFns : List<(Unit) -> Unit> = ArrayList<(Unit) -> Unit>()
+    var lintBoolFns : List<(List<Int64>) -> Bool> = ArrayList<(List<Int64>) -> Bool>()
+    var lintLintFns : List<(List<Int64>) -> List<Int64>> = ArrayList<(List<Int64>) -> List<Int64>>()
+    var lintOintFns : List<(List<Int64>) -> Option<Int64>> = ArrayList<(List<Int64>) -> Option<Int64>>()
+    var lintIntFns : List<(List<Int64>) -> Int64> = ArrayList<(List<Int64>) -> Int64>()
+    var intIntRes: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
+    var unitUnitRes : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
+    var intlintRes : List<Resumption<Int64, List<Int64>>> = ArrayList<Resumption<Int64, List<Int64>>>()
+    var boolIntRes : List<Resumption<Bool, Int64>> = ArrayList<Resumption<Bool, Int64>>()
+    var boolLintRes : List<Resumption<Bool, List<Int64>>> = ArrayList<Resumption<Bool, List<Int64>>>()
+    var boolBoolRes : List<Resumption<Bool, Bool>> = ArrayList<Resumption<Bool, Bool>>()
+}
+
 /* This provides all of the implementation for the immediate effects used.
 */
 func handleStash_old<Y>(s: Stash, fn: () -> Y): Y {
@@ -270,7 +286,7 @@ func main_run_resumptions_once() {
     let s : Stash = Stash()
     s.intIntFns = fns
     runExtRand(r) {
-        handleStash(s) {
+        handleStash_old(s) {
             handleUnknownABType<Int64, Int64, Int64, Int64>(fns[0])(randSmallInt64())
         }
     }

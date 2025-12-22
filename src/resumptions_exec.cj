@@ -65,22 +65,6 @@ class HasFn<A, B> <: Command<Bool> {
     }
 }
 
-class Stash {
-    var intIntFns : List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
-    var intBoolFns : List<(Int64) -> Bool> = ArrayList<(Int64) -> Bool>()
-    var unitUnitFns : List<(Unit) -> Unit> = ArrayList<(Unit) -> Unit>()
-    var lintBoolFns : List<(List<Int64>) -> Bool> = ArrayList<(List<Int64>) -> Bool>()
-    var lintLintFns : List<(List<Int64>) -> List<Int64>> = ArrayList<(List<Int64>) -> List<Int64>>()
-    var lintOintFns : List<(List<Int64>) -> Option<Int64>> = ArrayList<(List<Int64>) -> Option<Int64>>()
-    var lintIntFns : List<(List<Int64>) -> Int64> = ArrayList<(List<Int64>) -> Int64>()
-    var intIntRes: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
-    var unitUnitRes : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
-    var intlintRes : List<Resumption<Int64, List<Int64>>> = ArrayList<Resumption<Int64, List<Int64>>>()
-    var boolIntRes : List<Resumption<Bool, Int64>> = ArrayList<Resumption<Bool, Int64>>()
-    var boolLintRes : List<Resumption<Bool, List<Int64>>> = ArrayList<Resumption<Bool, List<Int64>>>()
-    var boolBoolRes : List<Resumption<Bool, Bool>> = ArrayList<Resumption<Bool, Bool>>()
-}
-
 class Arbitrary {
     func sHandle<Y>(fn: () -> Y): Y {
         try {
@@ -166,11 +150,13 @@ class FnStash<A, B> {
 class Stash_ {
     let intIntFns : FnStash<Int64, Int64> = FnStash<Int64, Int64>()
     let intBoolFns : FnStash<Int64, Bool> = FnStash<Int64, Bool>()
+    let intUnitFns : FnStash<Int64, Unit> = FnStash<Int64, Unit>()
     let unitUnitFns : FnStash<Unit, Unit> = FnStash<Unit, Unit>()
     let lintBoolFns : FnStash<List<Int64>, Bool> = FnStash<List<Int64>, Bool>()
     let lintLintFns : FnStash<List<Int64>, List<Int64>> = FnStash<List<Int64>, List<Int64>>()
     let lintOintFns : FnStash<List<Int64>, Option<Int64>> = FnStash<List<Int64>, Option<Int64>>()
     let lintIntFns : FnStash<List<Int64>, Int64> = FnStash<List<Int64>, Int64>()
+    let intLintFns : FnStash<Int64, List<Int64>> = FnStash<Int64, List<Int64>>()
 
     let intIntRes : ResStash<Int64, Int64> = ResStash<Int64, Int64>()
     let unitUnitRes : ResStash<Unit, Unit> = ResStash<Unit, Unit>()
@@ -182,14 +168,19 @@ class Stash_ {
     let arb : Arbitrary = Arbitrary()
 
     func handleStash<Y>(fn: () -> Y): Y {
+        // generators for primitive types
         arb.sHandle {
+        // functions
         intIntFns.sHandle {
         intBoolFns.sHandle {
+        intUnitFns.sHandle {
         unitUnitFns.sHandle {
         lintBoolFns.sHandle {
         lintLintFns.sHandle {
         lintOintFns.sHandle {
         lintIntFns.sHandle {
+        intLintFns.sHandle {
+        // resumptions
         intIntRes.sHandle {
         unitUnitRes.sHandle {
         intlintRes.sHandle {
@@ -197,7 +188,7 @@ class Stash_ {
         boolLintRes.sHandle {
         boolBoolRes.sHandle {
             fn()
-        }}}}}}}}}}}}}}
+        }}}}}}}}}}}}}}}}
     }
 }
 
@@ -258,5 +249,7 @@ func handleUnknown<Y>(fn: () -> Y): Y {
         handleUnknown<Y> { fillFunction<List<Int64>, Bool, Y>(f, r) }
     } handle(f: UnknownFunction<List<Int64>, List<Int64>>, r: Resumption<List<Int64>, Y>) {
         handleUnknown<Y> { fillFunction<List<Int64>, List<Int64>, Y>(f, r) }
+    } handle(f: UnknownFunction<Int64, List<Int64>>, r: Resumption<List<Int64>, Y>) {
+        handleUnknown<Y> { fillFunction<Int64, List<Int64>, Y>(f, r) }
     }
 }
