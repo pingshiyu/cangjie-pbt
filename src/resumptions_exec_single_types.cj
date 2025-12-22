@@ -174,6 +174,74 @@ func handleUnknownABType<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
     }
 }}
 
+/* This provides all of the implementation for the immediate effects used.
+*/
+func handleStash_old<Y>(s: Stash, fn: () -> Y): Y {
+    try {
+        fn()
+    } handle(e: AddResumption<Int64, Int64>) {
+        s.intIntRes.add(e.r)
+        resume with ()
+    } handle(e: AddResumption<Unit, Unit>) {
+        s.unitUnitRes.add(e.r)
+        resume with ()
+    } handle(e: AddResumption<Int64, List<Int64>>) {
+        s.intlintRes.add(e.r)
+        resume with ()
+    } handle(e: AddResumption<Bool, Int64>) {
+        s.boolIntRes.add(e.r)
+        resume with ()
+    } handle(e: AddResumption<Bool, List<Int64>>) {
+        s.boolLintRes.add(e.r)
+        resume with ()
+    } handle(e: AddResumption<Bool, Bool>) {
+        s.boolBoolRes.add(e.r)
+        resume with ()
+    } handle(e: GetRandomResumption<Int64, Int64>) {
+        let chosenRIx = randIntRange(0, s.intIntRes.size)
+        let chosenR = s.intIntRes.remove(at:chosenRIx)
+        resume with chosenR
+    } handle(e: GetRandomResumption<Unit, Unit>) {
+        let chosenRIx = randIntRange(0, s.unitUnitRes.size)
+        let chosenR = s.unitUnitRes.remove(at:chosenRIx)
+        resume with chosenR
+    } handle(e: GetRandomResumption<Int64, List<Int64>>) {
+        let chosenRIx = randIntRange(0, s.intlintRes.size)
+        let chosenR = s.intlintRes.remove(at:chosenRIx)
+        resume with chosenR
+    } handle(e: GetRandomResumption<Bool, Int64>) {
+        let chosenRIx = randIntRange(0, s.boolIntRes.size)
+        let chosenR = s.boolIntRes.remove(at:chosenRIx)
+        resume with chosenR
+    } handle(e: GetRandomResumption<Bool, List<Int64>>) {
+        let chosenRIx = randIntRange(0, s.boolLintRes.size)
+        let chosenR = s.boolLintRes.remove(at:chosenRIx)
+        resume with chosenR
+    } handle(e: GetRandomResumption<Bool, Bool>) {
+        let chosenRIx = randIntRange(0, s.boolBoolRes.size)
+        let chosenR = s.boolBoolRes.remove(at:chosenRIx)
+        resume with chosenR
+    } handle(e: HasResumption<Unit, Unit>) {
+        resume with s.unitUnitRes.isEmpty()
+    } handle(e: HasResumption<Int64, Int64>) {
+        resume with s.intIntRes.isEmpty()
+    } handle(e: HasResumption<Int64, List<Int64>>) {
+        resume with s.intlintRes.isEmpty()
+    } handle(e: GetRandomFn<Int64, Int64>) {
+        let chosenFIx = randIntRange(0, s.intIntFns.size)
+        let chosenF = s.intIntFns.remove(at:chosenFIx)
+        resume with chosenF
+    } handle(e: GetRandomFn<Unit, Unit>) {
+        let chosenFIx = randIntRange(0, s.unitUnitFns.size)
+        let chosenF = s.unitUnitFns.remove(at:chosenFIx)
+        resume with chosenF
+    } handle(e: HasFn<Int64, Int64>) {
+        resume with !s.intIntFns.isEmpty()
+    } handle(e: HasFn<Unit, Unit>) {
+        resume with !s.unitUnitFns.isEmpty()
+    }
+}
+
 func main_old() {
     // only unit types:
     // let fns: List<() -> Unit> = ArrayList<() -> Unit>([fi(1), fi(2), fi(3), fi(4)])

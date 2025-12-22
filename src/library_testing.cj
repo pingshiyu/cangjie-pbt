@@ -90,6 +90,12 @@ func noneFaked<A>(xs: List<A>): Bool {
     return none(fake<A, Bool>)(xs)
 }
 
+// all :: (A -> Bool) -> Iter A -> Bool
+func allFaked<A>(xs: List<A>): Bool {
+    println("all called")
+    return all(fake<A, Bool>)(xs)
+}
+
 // forEach :: (A -> Unit) -> Iter A -> Unit
 func forEachFaked<A>(xs: List<A>): Unit {
     return forEach(fake<A, Unit>)(xs)
@@ -111,31 +117,31 @@ func map2EFaked<A, B>(xs : List<A>): List<B> {
 }
 
 main() {
-    let s : Stash = Stash()
-    s.intIntFns = ArrayList<(Int64) -> Int64>([
+    let s : Stash_ = Stash_()
+    s.intIntFns.setStash(ArrayList<(Int64) -> Int64>([
         fint_mul(0), fint_add(1), fint_mul(2), fint_add(3) 
-    ])
-    s.intBoolFns = ArrayList<(Int64) -> Bool>([
+    ]))
+    s.intBoolFns.setStash(ArrayList<(Int64) -> Bool>([
         
-    ])
-    s.lintLintFns = ArrayList<(List<Int64>) -> List<Int64>>([
+    ]))
+    s.lintLintFns.setStash(ArrayList<(List<Int64>) -> List<Int64>>([
         mapEFaked<Int64, Int64>, map2EFaked<Int64, Int64>, filterEFaked<Int64>
-    ])
-    s.lintBoolFns = ArrayList<(List<Int64>) -> Bool>([
-        anyFaked<Int64>, noneFaked<Int64>, isEmpty<Int64>, contains<Int64>(0), contains<Int64>(1)
-    ])
-    s.lintOintFns = ArrayList<(List<Int64>) -> Option<Int64>>([
+    ]))
+    s.lintBoolFns.setStash(ArrayList<(List<Int64>) -> Bool>([
+        anyFaked<Int64>, noneFaked<Int64>, allFaked<Int64>, isEmpty<Int64>, contains<Int64>(0), contains<Int64>(1)
+    ]))
+    s.lintOintFns.setStash(ArrayList<(List<Int64>) -> Option<Int64>>([
         reduceFaked<Int64>
-    ])
-    s.lintIntFns = ArrayList<(List<Int64>) -> Int64>([
+    ]))
+    s.lintIntFns.setStash(ArrayList<(List<Int64>) -> Int64>([
         count<Int64>
-    ])
+    ]))
 
     let r : Random = Random()
-    let output = runExtRand(r) { handleStash(s) { handleUnknown {
+    let output = runExtRand(r) { s.handleStash { handleUnknown {
         let input : List<Int64> = randList<Int64>(10, randInt64)()
         println("input: ${showList(", ", input)}")
-        anyFaked(input)
+        noneFaked(input)
     }}}
 
     println("output: ${output}")
