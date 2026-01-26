@@ -6,7 +6,7 @@
   target-dir = ""
   src-dir = ""
   output-type = "executable"
-  compile-option = "--experimental --enable-eh"
+  compile-option = "--experimental --enable-eh --debug-macro"
   override-compile-option = ""
   link-option = ""
 

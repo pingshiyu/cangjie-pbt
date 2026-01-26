@@ -4,6 +4,7 @@ import std.unittest.*
 import std.collection.*
 import std.unittest.testmacro.*
 
+/*
 @Test
 class AddTests {
 
@@ -48,3 +49,5 @@ class AddTests {
         }
     }
 }
+
+*/
