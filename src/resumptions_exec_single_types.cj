@@ -2,12 +2,11 @@ package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
-import std.random.*
 
 func runBackpocket<R>(fn: () -> R) {
     try {
         fn()
-    } handle(bg : BackpocketGenerator<Int64>) {
+    } handle(_ : BackpocketGenerator<Int64>) {
         resume with randSmallInt64()
     }
 }
@@ -20,7 +19,7 @@ functions.
 func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, fn : () -> Unit): Unit {
     try {
         fn()
-    } handle(f : UnknownFunction<Unit, Unit>, r : Resumption<Unit, Unit>) {
+    } handle(_ : UnknownFunction<Unit, Unit>, r : Resumption<Unit, Unit>) {
         // either resume an existing resumption, or start a function in the list
         rs.add(r)
 
@@ -42,6 +41,7 @@ func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, 
     }
 }
 
+/*
 func executeUnitUnit(fns: List<() -> Unit>) {
     let rs : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
     handleUnknownUnit(fns, rs) {
@@ -49,6 +49,7 @@ func executeUnitUnit(fns: List<() -> Unit>) {
         fn()
     }
 }
+*/
 
 /* v2: generalisation to single types A -> A. Now functions can interact through passing their input/output 
 arguments.
@@ -77,6 +78,7 @@ func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>,
     }
 }}
 
+/*
 func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
     let r: Random = Random()
     let rs: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
@@ -102,6 +104,7 @@ func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
         }
     }
 }
+*/
 
 /* v3: generalised to general outside function of type X -> Y.
 Moreover, we now no longer need to pass in the state-based parameters to track the 
@@ -213,51 +216,52 @@ func handleStash_old<Y>(s: Stash, fn: () -> Y): Y {
     } handle(e: AddResumption<Bool, Bool>) {
         s.boolBoolRes.add(e.r)
         resume with ()
-    } handle(e: GetRandomResumption<Int64, Int64>) {
+    } handle(_: GetRandomResumption<Int64, Int64>) {
         let chosenRIx = randIntRange(0, s.intIntRes.size)
         let chosenR = s.intIntRes.remove(at:chosenRIx)
         resume with chosenR
-    } handle(e: GetRandomResumption<Unit, Unit>) {
+    } handle(_: GetRandomResumption<Unit, Unit>) {
         let chosenRIx = randIntRange(0, s.unitUnitRes.size)
         let chosenR = s.unitUnitRes.remove(at:chosenRIx)
         resume with chosenR
-    } handle(e: GetRandomResumption<Int64, List<Int64>>) {
+    } handle(_: GetRandomResumption<Int64, List<Int64>>) {
         let chosenRIx = randIntRange(0, s.intlintRes.size)
         let chosenR = s.intlintRes.remove(at:chosenRIx)
         resume with chosenR
-    } handle(e: GetRandomResumption<Bool, Int64>) {
+    } handle(_: GetRandomResumption<Bool, Int64>) {
         let chosenRIx = randIntRange(0, s.boolIntRes.size)
         let chosenR = s.boolIntRes.remove(at:chosenRIx)
         resume with chosenR
-    } handle(e: GetRandomResumption<Bool, List<Int64>>) {
+    } handle(_: GetRandomResumption<Bool, List<Int64>>) {
         let chosenRIx = randIntRange(0, s.boolLintRes.size)
         let chosenR = s.boolLintRes.remove(at:chosenRIx)
         resume with chosenR
-    } handle(e: GetRandomResumption<Bool, Bool>) {
+    } handle(_: GetRandomResumption<Bool, Bool>) {
         let chosenRIx = randIntRange(0, s.boolBoolRes.size)
         let chosenR = s.boolBoolRes.remove(at:chosenRIx)
         resume with chosenR
-    } handle(e: HasResumption<Unit, Unit>) {
+    } handle(_: HasResumption<Unit, Unit>) {
         resume with s.unitUnitRes.isEmpty()
-    } handle(e: HasResumption<Int64, Int64>) {
+    } handle(_: HasResumption<Int64, Int64>) {
         resume with s.intIntRes.isEmpty()
-    } handle(e: HasResumption<Int64, List<Int64>>) {
+    } handle(_: HasResumption<Int64, List<Int64>>) {
         resume with s.intlintRes.isEmpty()
-    } handle(e: GetRandomFn<Int64, Int64>) {
+    } handle(_: GetRandomFn<Int64, Int64>) {
         let chosenFIx = randIntRange(0, s.intIntFns.size)
         let chosenF = s.intIntFns.remove(at:chosenFIx)
         resume with chosenF
-    } handle(e: GetRandomFn<Unit, Unit>) {
+    } handle(_: GetRandomFn<Unit, Unit>) {
         let chosenFIx = randIntRange(0, s.unitUnitFns.size)
         let chosenF = s.unitUnitFns.remove(at:chosenFIx)
         resume with chosenF
-    } handle(e: HasFn<Int64, Int64>) {
+    } handle(_: HasFn<Int64, Int64>) {
         resume with !s.intIntFns.isEmpty()
-    } handle(e: HasFn<Unit, Unit>) {
+    } handle(_: HasFn<Unit, Unit>) {
         resume with !s.unitUnitFns.isEmpty()
     }
 }
 
+/*
 func main_old() {
     // only unit types:
     // let fns: List<() -> Unit> = ArrayList<() -> Unit>([fi(1), fi(2), fi(3), fi(4)])
@@ -273,6 +277,7 @@ func main_old() {
     }
     executeIntInt(fns)
 }
+
 
 func main_run_resumptions_once() {
     let fns: List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
@@ -291,6 +296,7 @@ func main_run_resumptions_once() {
         }
     }
 }
+*/
 
 func fint_add(a: Int64): (Int64) -> Int64 {{ i =>
     println("fadd${a}: 1, ${i}")
@@ -322,6 +328,7 @@ func fint_mul(a: Int64): (Int64) -> Int64 {{ i =>
     return i * i4
 }}
 
+/*
 func fi(i : Int64): () -> Unit {{ =>
     println("f${i}: 1")
     fake<Unit, Unit>(())
@@ -334,3 +341,4 @@ func fi(i : Int64): () -> Unit {{ =>
     println("f${i}: 5")
     fake<Unit, Unit>(())
 }}
+*/

@@ -9,9 +9,8 @@
   compile-option = "--experimental --enable-eh"
   override-compile-option = ""
   link-option = ""
-  [package.package-configuration]
 
-[dependencies]
+[package.package-configuration]
 
 [target.aarch64-apple-darwin]                                                     
   [target.aarch64-apple-darwin.bin-dependencies]

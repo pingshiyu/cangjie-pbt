@@ -37,9 +37,11 @@ func pop<T>(al : List<T>) : T {
     return rv
 }
 
+/*
 public func printSep() {
     println("------------------")
 }
+*/
 
 func unpack<T>(f: ((T, T)) -> T): (T, T) -> T {
     return { x, y => f((x, y)) }

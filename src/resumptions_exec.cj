@@ -2,14 +2,13 @@ package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
-import std.random.*
 
 class UnhandledInstance <: Exception {
     public init(msg: String) {
         super(msg)
     }
 
-    public open override func getClassName(): String {
+    public override func getClassName(): String {
         "UnhandledInstance"
     }
 }
@@ -69,11 +68,11 @@ class Arbitrary {
     func sHandle<Y>(fn: () -> Y): Y {
         try {
             fn()
-        } handle(e: BackpocketGenerator<Int64>) {
+        } handle(_: BackpocketGenerator<Int64>) {
             resume with randSmallInt64()
-        } handle(e: BackpocketGenerator<Unit>) {
+        } handle(_: BackpocketGenerator<Unit>) {
             resume with ()
-        } handle(e: BackpocketGenerator<Bool>) {
+        } handle(_: BackpocketGenerator<Bool>) {
             resume with randBool(0.50)
         }
     }
@@ -105,9 +104,9 @@ class ResStash<X, Y> {
     func sHandle<Z>(fn: () -> Z): Z {
         try {
             fn()
-        } handle(e: GetRandomResumption<X, Y>) {
+        } handle(_: GetRandomResumption<X, Y>) {
             resume with randomResumption()
-        } handle(e: HasResumption<X, Y>) {
+        } handle(_: HasResumption<X, Y>) {
             resume with hasResumption()
         } handle(e: AddResumption<X, Y>) {
             resume with addResumption(e.r)
@@ -139,9 +138,9 @@ class FnStash<A, B> {
     func sHandle<Y>(fn: () -> Y): Y {
         try {
             fn()
-        } handle(e: GetRandomFn<A, B>) {
+        } handle(_: GetRandomFn<A, B>) {
             resume with randomFunction()
-        } handle(e: HasFn<A, B>) {
+        } handle(_: HasFn<A, B>) {
             resume with hasFunction()
         }
     }

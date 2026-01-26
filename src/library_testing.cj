@@ -1,6 +1,5 @@
 package cangjie_experiments
 
-import stdx.effect.*
 import std.collection.*
 import std.random.*
 
@@ -141,6 +140,8 @@ func flatMapFaked<A, B>(xs: List<A>): List<B> {
 }
 
 main() {
+    macroMain()
+
     let s : Stash_ = Stash_()
     s.intIntFns.setStash(ArrayList<(Int64) -> Int64>([
         fint_mul(0), fint_add(1), fint_mul(2), fint_add(3) 
@@ -168,13 +169,13 @@ main() {
     ]))
 
     let r : Random = Random()
-    let output = runExtRand(r) { s.handleStash { handleUnknown {
-        let input : List<Int64> = randList<Int64>(10, randInt64)()
-        println("input: ${showList(", ", input)}")
-        noneFaked(input)
-    }}}
-
-    println("output: ${output}")
+    // let output = runExtRand(r) { s.handleStash { handleUnknown {
+    //     let input : List<Int64> = randList<Int64>(10, randInt64)()
+    //     println("input: ${showList(", ", input)}")
+    //     noneFaked(input)
+    // }}}
+// 
+    // println("output: ${output}")
 
     return 0
 }

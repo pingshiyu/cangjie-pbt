@@ -5,7 +5,7 @@ import std.collection.*
 import std.random.*
 
 class WrongArgumentException <: Exception {
-    public WrongArgumentException(msg: String) {}
+    public WrongArgumentException(_: String) {}
 }
 
 type RUnit = Int8
@@ -39,6 +39,7 @@ enum Value {
     | I8V(Int8)
 }
 
+/*
 func showValue(v : Value) : String {
     match (v) {
         case BoolV(b) => b.toString() + " : i1"
@@ -58,10 +59,12 @@ func createValue(v : Int64) : Option<Value> {
 func createValue(v : Int8) : Option<Value> {
     return I8V(v)
 }
+*/
 
 func createValue<R>(_ : R) : Option<Value> {
     return None
 }
+
 
 // Enter/exit scopes of generation. Relates RUnits together.
 class EnterScope <: Command<Unit> {
@@ -172,19 +175,23 @@ class RandTree {
         return lines
     }
 
+    /*
     public func print() : Unit {
         println(showInterleave("\n", this.show(0)))
     }
+    */
 
     public func modify(begin: Int, len: Int, repl: Collection<RUnit>) {
         this.node.remove(begin..(begin+len-1))
         this.node.add(all: repl, at: begin)
     }
 
+    /*
     public func modify(range: Range<Int64>, repl: Collection<RUnit>) {
         this.node.remove(range)
         this.node.add(all: repl, at: range.start)
     }
+    */
 
     public func replace(loc: Int64, repl: RUnit) {
         this.modify(loc, 2, [repl])
