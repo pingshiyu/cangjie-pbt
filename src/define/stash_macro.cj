@@ -3,6 +3,11 @@ macro package cangjie_experiments.define
 import std.collection.*
 import std.ast.*
 
+/*
+TODO:
+- expand into handlers directly rather than stacks of calls. does it allow for better scaling?
+*/
+
 /* Get types from the input tokens
 Expects input to be a list of types, surrounded by [] characters.
 */
@@ -104,4 +109,31 @@ public macro ModuleTest(input: Tokens): Tokens {
     var res = genStashes(parseAsTypes(input))
     res += genUnknownHandlers(parseAsTypes(input))
     return res
+}
+
+func parseAsFuncExprs(input: Tokens): (List<Expr>, List<FuncType>) {
+    let exps = ArrayList<Expr>()
+    let tys = ArrayList<FuncType>()
+    var i : Int64 = 1 // skip '['
+    while (i < input.size - 1) {
+        let parseExprRes : (Expr, Int64) = parseExprFragment(input, startFrom: i) // function expression
+        exps.add(parseExprRes[0])
+        i = parseExprRes[1] + 1 // skip ':'
+        let parseTypeRes : (TypeNode, Int64) = parseTypeFragment(input, startFrom: i) // type of expression
+        let ft = (parseTypeRes[0] as FuncType).getOrThrow()
+        tys.add(ft)
+        i = parseTypeRes[1] + 1 // skip ','
+    }
+    return (exps, tys)
+}
+
+public macro FuncTypes(input: Tokens): Tokens {
+    println("inputs are: ${input}")
+    let (exprs, tys) = parseAsFuncExprs(input)
+    // assert: exprs.size == tys.size
+    for (i in 0..exprs.size) {
+        exprs[i].dump()
+        tys[i].dump()
+    }
+    return quote()
 }
