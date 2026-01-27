@@ -127,13 +127,47 @@ func parseAsFuncExprs(input: Tokens): (List<Expr>, List<FuncType>) {
     return (exps, tys)
 }
 
+func getFnTypes(ft: FuncType): (TypeNode, TypeNode) {
+    return (ft.types[0], ft.returnType)
+}
+
+type TypeNodeRepr = String
+
+func getTypeRepr(tn : TypeNode): TypeNodeRepr {
+    return tn.toTokens().toString()
+}
+
+func getTypesInvolved(fnTys: List<FuncType>): List<TypeNode> {
+    let out = ArrayList<TypeNode>()
+    let uniqueTypes = HashSet<TypeNodeRepr>()
+    for (ft in fnTys) {
+        let (tIn, tOut) = getFnTypes(ft)
+        if (!uniqueTypes.contains(getTypeRepr(tIn))) { 
+            out.add(tIn)
+            uniqueTypes.add(getTypeRepr(tIn))
+        }
+        if (!uniqueTypes.contains(getTypeRepr(tOut))) { 
+            out.add(tOut)
+            uniqueTypes.add(getTypeRepr(tOut))
+        }
+    }
+    return ArrayList<TypeNode>(out)
+}
+
 public macro FuncTypes(input: Tokens): Tokens {
     println("inputs are: ${input}")
     let (exprs, tys) = parseAsFuncExprs(input)
     // assert: exprs.size == tys.size
-    for (i in 0..exprs.size) {
-        exprs[i].dump()
-        tys[i].dump()
+
+    let allTys = getTypesInvolved(tys)
+    var out = quote()
+
+    println("expanding on these types:")
+    for (ty in allTys) {
+        ty.dump()
     }
-    return quote()
+
+    out += genStashes(allTys)
+    out += genUnknownHandlers(allTys)
+    return out
 }
