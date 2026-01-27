@@ -1,7 +1,7 @@
 package cangjie_experiments
 
-import stdx.effect.*
 import std.collection.*
+import stdx.effect.*
 
 class UnhandledInstance <: Exception {
     public init(msg: String) {
