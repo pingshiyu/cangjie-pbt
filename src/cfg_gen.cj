@@ -2,6 +2,7 @@ package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
+import std.sort.*
 
 // context free grammar expansion (randomised)
 class S <: Command<Unit> {}
@@ -25,7 +26,7 @@ func expandS(buf : List<String>, verbose: Bool, fn : () -> Unit): Unit {
     }
 }
 
-/*
+
 func pbtMain() : Int64 {
     // create a RandTree and print it
     let t = RandTree(None, None)
@@ -188,4 +189,3 @@ func pbtMain() : Int64 {
 
     return 0
 }
-*/

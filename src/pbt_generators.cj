@@ -11,12 +11,11 @@ withScope("randBool(${p})") {
     return Float64(abs(Int16(i))) > trueLimit // such that reductions towards 0 => turns this false
 }}
 
-/*
+
 func randInt8(): Int8 { 
 withScope("randInt8()") { 
     return rand()
 }}
-*/
 
 func randSmallInt64(): Int64 {
 withScope("randSmallInt64()") {
@@ -34,7 +33,6 @@ withScope("randInt64()") {
     return finalVal
 }}
 
-/*
 func randNat(): List<UInt64> { 
 withScope("randNat()") {
     // pick a random natural number
@@ -48,7 +46,6 @@ withScope("randNat()") {
     // final value is \sum (2^(4i) * ns[i])
     return ns
 }}
-*/
 
 func randIntRange(begin : Int64, end : Int64) : Int64 {
 withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")") {

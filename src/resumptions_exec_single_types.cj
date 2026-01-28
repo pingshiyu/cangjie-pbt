@@ -2,6 +2,7 @@ package cangjie_experiments
 
 import stdx.effect.*
 import std.collection.*
+import std.random.*
 
 func runBackpocket<R>(fn: () -> R) {
     try {
@@ -41,7 +42,6 @@ func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, 
     }
 }
 
-/*
 func executeUnitUnit(fns: List<() -> Unit>) {
     let rs : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
     handleUnknownUnit(fns, rs) {
@@ -49,7 +49,6 @@ func executeUnitUnit(fns: List<() -> Unit>) {
         fn()
     }
 }
-*/
 
 /* v2: generalisation to single types A -> A. Now functions can interact through passing their input/output 
 arguments.
@@ -78,7 +77,6 @@ func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>,
     }
 }}
 
-/*
 func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
     let r: Random = Random()
     let rs: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
@@ -104,7 +102,6 @@ func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
         }
     }
 }
-*/
 
 /* v3: generalised to general outside function of type X -> Y.
 Moreover, we now no longer need to pass in the state-based parameters to track the 
@@ -261,7 +258,6 @@ func handleStash_old<Y>(s: Stash, fn: () -> Y): Y {
     }
 }
 
-/*
 func main_old() {
     // only unit types:
     // let fns: List<() -> Unit> = ArrayList<() -> Unit>([fi(1), fi(2), fi(3), fi(4)])
@@ -296,7 +292,6 @@ func main_run_resumptions_once() {
         }
     }
 }
-*/
 
 func fint_add(a: Int64): (Int64) -> Int64 {{ i =>
     println("fadd${a}: 1, ${i}")
@@ -328,7 +323,6 @@ func fint_mul(a: Int64): (Int64) -> Int64 {{ i =>
     return i * i4
 }}
 
-/*
 func fi(i : Int64): () -> Unit {{ =>
     println("f${i}: 1")
     fake<Unit, Unit>(())
@@ -341,4 +335,3 @@ func fi(i : Int64): () -> Unit {{ =>
     println("f${i}: 5")
     fake<Unit, Unit>(())
 }}
-*/

@@ -16,7 +16,6 @@ func deeper<T>(f : () -> T) : Unit {
     }
 }
 
-/*
 func testGetDepth() {
     let d1 = perform GetDepth()
     println("depth: ${d1}")
@@ -33,7 +32,6 @@ func testGetDepth() {
     let d5 = perform GetDepth() 
     println("depth: ${d5}")
 }
-*/
 
 // f :: FakeEffects -> P -> T 
 // as fake reader.
@@ -59,7 +57,6 @@ func fakeDeeper<T>(fe : FakeEffects<Int64>, f : (FakeEffects<Int64>) -> T): Unit
     return ()
 }
 
-/*
 func fakeTestGetDepth() {
     let fe = FakeEffects(0)
     println("depth: ${fe.ask()}")
@@ -80,4 +77,3 @@ func mainReader() {
     println("Fake effects-based implementation")
     fakeTestGetDepth()
 }
-*/

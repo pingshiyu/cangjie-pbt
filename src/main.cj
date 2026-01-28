@@ -1,6 +1,7 @@
 package cangjie_experiments
 
 import stdx.effect.*
+import std.collection.*
 
 class Eff <: Command<Int64> {}
 
@@ -49,7 +50,7 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
     }
 }
 
-/*
+
 func main2(): Int64 {
     try {
         println(1)
@@ -244,4 +245,3 @@ func main2(): Int64 {
 
     return 0
 }
-*/

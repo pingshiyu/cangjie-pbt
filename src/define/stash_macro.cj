@@ -3,11 +3,6 @@ macro package cangjie_experiments.define
 import std.collection.*
 import std.ast.*
 
-/*
-TODO:
-- expand into handlers directly rather than stacks of calls. does it allow for better scaling?
-*/
-
 /* Get types from the input tokens
 Expects input to be a list of types, surrounded by [] characters.
 */
@@ -52,7 +47,8 @@ func genStashes(tys: List<TypeNode>): Tokens {
             let res_vn = Token(TokenKind.IDENTIFIER, "res_${i1}_${i2}")
             let t1 = tys[i1]
             let t2 = tys[i2]
-            result += quote(handle(_: GetRandomFn<$(t1), $(t2)>) {
+            result += quote(
+              handle(_: GetRandomFn<$(t1), $(t2)>) {
                 resume with $(fns_vn).randomFunction()
             } handle(_: HasFn<$(t1), $(t2)>) {
                 resume with $(fns_vn).hasFunction()
@@ -122,7 +118,7 @@ func genUnknownHandlers(tys: List<TypeNode>): Tokens {
     return res
 }
 
-public macro ModuleTest(input: Tokens): Tokens {
+public macro StashFromTypes(input: Tokens): Tokens {
     println("inputs are: ${input}")
     var res = genStashes(parseAsTypes(input))
     res += genUnknownHandlers(parseAsTypes(input))

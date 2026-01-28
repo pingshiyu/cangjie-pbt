@@ -1,5 +1,7 @@
 package cangjie_experiments
 
+import cangjie_experiments.define.*
+import stdx.effect.*
 import std.collection.*
 import std.random.*
 
@@ -139,9 +141,9 @@ func flatMapFaked<A, B>(xs: List<A>): List<B> {
     asList(flatMap(fake<A, Iterable<B>>)(xs))
 }
 
-main() {
-    macroMain()
+@StashFromTypes([Int64, Bool, Unit, List<Int64>, Option<Int64>])
 
+main() {
     let s : Stash_ = Stash_()
     s.intIntFns.setStash(ArrayList<(Int64) -> Int64>([
         fint_mul(0), fint_add(1), fint_mul(2), fint_add(3) 
