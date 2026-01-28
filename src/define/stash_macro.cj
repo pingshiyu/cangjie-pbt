@@ -42,7 +42,31 @@ func genStashes(tys: List<TypeNode>): Tokens {
     }
 
     result += quote(func handleStash<Y>(fn: () -> Y): Y {
-        arb.sHandle { )
+        arb.sHandle { 
+            try {
+                fn()
+            })
+    for (i1 in 0..tys.size) {
+        for (i2 in 0..tys.size) {
+            let fns_vn = Token(TokenKind.IDENTIFIER, "fns_${i1}_${i2}")
+            let res_vn = Token(TokenKind.IDENTIFIER, "res_${i1}_${i2}")
+            let t1 = tys[i1]
+            let t2 = tys[i2]
+            result += quote(handle(_: GetRandomFn<$(t1), $(t2)>) {
+                resume with $(fns_vn).randomFunction()
+            } handle(_: HasFn<$(t1), $(t2)>) {
+                resume with $(fns_vn).hasFunction()
+            } handle(_: GetRandomResumption<$(t1), $(t2)>) {
+                resume with $(res_vn).randomResumption()
+            } handle(_: HasResumption<$(t1), $(t2)>) {
+                resume with $(res_vn).hasResumption()
+            } handle(e: AddResumption<$(t1), $(t2)>) {
+                resume with $(res_vn).addResumption(e.r)
+            })
+        }
+    }
+
+    /*
     for (i1 in 0..tys.size) {
         for (i2 in 0..tys.size) {
             let fns_vn = Token(TokenKind.IDENTIFIER, "fns_${i1}_${i2}")
@@ -60,7 +84,9 @@ func genStashes(tys: List<TypeNode>): Tokens {
             result += quote(}}) // closes fns_i.handle{; res_i.handle{
         }
     }
-    result += quote(}) // closes arb.handle {
+    */
+
+    result += quote(}) // closes arb.sHandle {
     result += quote(}}) // closes func.handleStash<..>(..) {; class StashG_ {
 
     return result
@@ -72,15 +98,7 @@ func handleUnknown<Y>(fn: () -> Y): Y {
         fn()
     } handle(f: UnknownFunction<Int64, Bool>, r: Resumption<Bool, Y>) {
         handleUnknown<Y> { fillFunction<Int64, Bool, Y>(f, r) }
-    } handle(f: UnknownFunction<Int64, Int64>, r: Resumption<Int64, Y>) {
-        handleUnknown<Y> { fillFunction<Int64, Int64, Y>(f, r) }
-    } handle(f: UnknownFunction<List<Int64>, Bool>, r: Resumption<Bool, Y>) {
-        handleUnknown<Y> { fillFunction<List<Int64>, Bool, Y>(f, r) }
-    } handle(f: UnknownFunction<List<Int64>, List<Int64>>, r: Resumption<List<Int64>, Y>) {
-        handleUnknown<Y> { fillFunction<List<Int64>, List<Int64>, Y>(f, r) }
-    } handle(f: UnknownFunction<Int64, List<Int64>>, r: Resumption<List<Int64>, Y>) {
-        handleUnknown<Y> { fillFunction<Int64, List<Int64>, Y>(f, r) }
-    }
+    } ...
 }
 */
 func genUnknownHandlers(tys: List<TypeNode>): Tokens {
@@ -154,7 +172,7 @@ func getTypesInvolved(fnTys: List<FuncType>): List<TypeNode> {
     return ArrayList<TypeNode>(out)
 }
 
-public macro FuncTypes(input: Tokens): Tokens {
+public macro CreateTest(input: Tokens): Tokens {
     println("inputs are: ${input}")
     let (exprs, tys) = parseAsFuncExprs(input)
     // assert: exprs.size == tys.size
