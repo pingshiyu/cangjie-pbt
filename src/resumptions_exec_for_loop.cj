@@ -4,8 +4,13 @@ import stdx.effect.*
 import std.collection.*
 import std.random.*
 
-// Todo:
-// Turn library functions into ones that uses Unk
+/*
+Todo:
+- Turn library functions into ones that uses Unk
+- Try running a library of functions
+- Running functions that requires a state (part of an object) 
+- make private fns public, and run them
+*/
 
 // Unk: effect that takes an A and returns a B
 class Unk <: Command<Unit> {}
@@ -74,15 +79,6 @@ func ignoreArgs<B>(f : () -> B): Unit {
     return ()
 }
 
-// example functions
-func effectfulFunction(label: String): UnitFn {{ =>
-    println("${label}: entry")
-    perform Unk() // call ext function
-    println("${label}: called Unk 1")
-    perform Unk() // call ext function
-    println("${label}: called Unk 2")
-}}
-
 func mainHarness(library: List<UnitFn>): Unit {
     let r = Random()
     let arb = Arbitrary()
@@ -105,6 +101,18 @@ func mainHarness(library: List<UnitFn>): Unit {
         }
     }}
 }
+
+
+// ========================
+// User code.
+// example functions
+func effectfulFunction(label: String): UnitFn {{ =>
+    println("${label}: entry")
+    perform Unk() // call ext function
+    println("${label}: called Unk 1")
+    perform Unk() // call ext function
+    println("${label}: called Unk 2")
+}}
 
 func runHarness() : Unit {
     let lib = ArrayList<UnitFn>([ // these may produce Unk effects.
