@@ -7,7 +7,7 @@ import std.random.*
 func runBackpocket<R>(fn: () -> R) {
     try {
         fn()
-    } handle(_ : BackpocketGenerator<Int64>) {
+    } handle(_ : GenRandom<Int64>) {
         resume with randSmallInt64()
     }
 }
@@ -71,7 +71,7 @@ func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>,
         } else {
             let chosenRIx = randIntRange(0, rs.size)
             let chosenR = rs.remove(at:chosenRIx)
-            let a0 = perform BackpocketGenerator<A>()
+            let a0 = perform GenRandom<A>()
             handleUnknownSingleType<A>(fns, rs, { x: A => resume chosenR with x })(a0)
         }
     }
@@ -126,7 +126,7 @@ func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
             handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(fOut)
         } else {
             let chosenR = perform GetRandomResumption<A, Y>()
-            let a0 = perform BackpocketGenerator<A>()
+            let a0 = perform GenRandom<A>()
             handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(a0)
         }
     }
@@ -143,7 +143,7 @@ func handleUnknownABType<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
     - {Add, GetRandom}Resumption<B, Y>
     - {Has, GetRandom}Resumption<A, Y>
     - {Has, GetRandom}Fn<A, B>
-    - BackpocketGenerator<B>
+    - GenRandom<B>
     */
     try {
         fn(x)
@@ -167,7 +167,7 @@ func handleUnknownABType<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
             handleUnknownABType<A, A, B, Y>({ a : A => resume chosenR with a })(f.arg)
         } else {
             // backup: resume by generating a fresh random argument to r
-            let b0 = perform BackpocketGenerator<B>()
+            let b0 = perform GenRandom<B>()
             let chosenR = perform GetRandomResumption<B, Y>()
             handleUnknownABType<B, A, B, Y>({ b : B => resume chosenR with b })(b0)
         }

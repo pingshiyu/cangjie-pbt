@@ -21,9 +21,9 @@ class UnknownFunction<A, B> <: Command<B> {
     }
 }
 
-class BackpocketGenerator<B> <: Command<B> {
+class GenRandom<B> <: Command<B> {
     public func defaultImpl() : B {
-        throw UnhandledInstance("BackpocketGenerator")
+        throw UnhandledInstance("GenRandom")
     }
 }
 
@@ -68,11 +68,11 @@ class Arbitrary {
     func sHandle<Y>(fn: () -> Y): Y {
         try {
             fn()
-        } handle(_: BackpocketGenerator<Int64>) {
+        } handle(_: GenRandom<Int64>) {
             resume with randSmallInt64()
-        } handle(_: BackpocketGenerator<Unit>) {
+        } handle(_: GenRandom<Unit>) {
             resume with ()
-        } handle(_: BackpocketGenerator<Bool>) {
+        } handle(_: GenRandom<Bool>) {
             resume with randBool(0.50)
         }
     }
@@ -231,7 +231,7 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     } else {
         println("generating random output and resuming")
         // backup: resume by generating a fresh random argument to r
-        let b0 = perform BackpocketGenerator<B>()
+        let b0 = perform GenRandom<B>()
         let chosenR = perform GetRandomResumption<B, Y>()
         resume chosenR with b0
     }
