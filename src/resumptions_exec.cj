@@ -1,96 +1,193 @@
 package cangjie_experiments
 
-import stdx.effect.*
 import std.collection.*
-import std.random.*
+import stdx.effect.*
+
+class UnhandledInstance <: Exception {
+    public init(msg: String) {
+        super(msg)
+    }
+
+    public override func getClassName(): String {
+        "UnhandledInstance"
+    }
+}
 
 // UnknownFunction :: A -> B
 class UnknownFunction<A, B> <: Command<B> {
     public UnknownFunction(let arg : A) {}
+    public func defaultImpl() : B {
+        throw UnhandledInstance("UnknownFunction")
+    }
 }
 
-class BackpocketGenerator<B> <: Command<B> {}
+class GenRandom<B> <: Command<B> {
+    public func defaultImpl() : B {
+        throw UnhandledInstance("GenRandom")
+    }
+}
 
 func fake<A, B>(a : A): B {
     return perform UnknownFunction<A, B>(a)
 }
 
-class GetRandomFn<A, B> <: Command<(A) -> B> {}
-class GetRandomResumption<X, Y> <: Command<Resumption<X, Y>> {}
+class GetRandomFn<A, B> <: Command<(A) -> B> {
+    public func defaultImpl() : (A) -> B {
+        throw UnhandledInstance("GetRandomFn")
+    }
+}
+
+class GetRandomResumption<X, Y> <: Command<Resumption<X, Y>> {
+    public func defaultImpl() : Resumption<X, Y> {
+        throw UnhandledInstance("GetRandomResumption")
+    }
+}
+
 class AddResumption<X, Y> <: Command<Unit> {
     AddResumption(let r: Resumption<X, Y>) {}
+    public func defaultImpl() : Unit {
+        throw UnhandledInstance("AddResumption")
+    }
 }
+
 class HasResumption<X, Y> <: Command<Bool> {
     public func defaultImpl(): Bool {
+        println("warning: defaultImpl for HasResumption used")
         return false
     }
 }
+
 class HasFn<A, B> <: Command<Bool> {
     public func defaultImpl(): Bool {
+        println("warning: defaultImpl for HasFn used")
         return false
     }
 }
 
-class Stash {
-    var intIntFns : List<(Int64) -> Int64> = ArrayList<(Int64) -> Int64>()
-    var unitUnitFns : List<(Unit) -> Unit> = ArrayList<(Unit) -> Unit>()
-    var lintBoolFns : List<(List<Int64>) -> Bool> = ArrayList<(List<Int64>) -> Bool>()
-    var lintLintFns : List<(List<Int64>) -> List<Int64>> = ArrayList<(List<Int64>) -> List<Int64>>()
-    var lintOintFns : List<(List<Int64>) -> Option<Int64>> = ArrayList<(List<Int64>) -> Option<Int64>>()
-    var lintIntFns : List<(List<Int64>) -> Int64> = ArrayList<(List<Int64>) -> Int64>()
-    var intRes: List<Resumption<Int64, Int64>> = ArrayList<Resumption<Int64, Int64>>()
-    var unitRes : List<Resumption<Unit, Unit>> = ArrayList<Resumption<Unit, Unit>>()
-    var intlintRes : List<Resumption<Int64, List<Int64>>> = ArrayList<Resumption<Int64, List<Int64>>>()
+class Arbitrary {
+    func sHandle<Y>(fn: () -> Y): Y {
+        try {
+            fn()
+        } handle(_: GenRandom<Int64>) {
+            resume with randSmallInt64()
+        } handle(_: GenRandom<Unit>) {
+            resume with ()
+        } handle(_: GenRandom<Bool>) {
+            resume with randBool(0.50)
+        }
+    }
 }
 
-/* This provides all of the implementation for the immediate effects used.
+/*
+// Stash typeclass
+class ResStash a where
+    AddResumption :: a -> r -> a
+    GetRandomResumption :: a -> Gen r
+    HasResumption :: a -> Bool
 */
-func handleStash<Y>(s: Stash, fn: () -> Y): Y {
-    try {
-        fn()
-    } handle(e: AddResumption<Int64, Int64>) {
-        s.intRes.add(e.r)
-        resume with ()
-    } handle(e: AddResumption<Unit, Unit>) {
-        s.unitRes.add(e.r)
-        resume with ()
-    } handle(e: AddResumption<Int64, List<Int64>>) {
-        s.intlintRes.add(e.r)
-        resume with ()
-    } handle(e: GetRandomResumption<Int64, Int64>) {
-        let chosenRIx = randIntRange(0, s.intRes.size)
-        let chosenR = s.intRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(e: GetRandomResumption<Unit, Unit>) {
-        let chosenRIx = randIntRange(0, s.unitRes.size)
-        let chosenR = s.unitRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(e: GetRandomResumption<Int64, List<Int64>>) {
-        let chosenRIx = randIntRange(0, s.intlintRes.size)
-        let chosenR = s.intlintRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(e: HasResumption<Unit, Unit>) {
-        resume with s.unitRes.isEmpty()
-    } handle(e: HasResumption<Int64, Int64>) {
-        resume with s.intRes.isEmpty()
-    } handle(e: HasResumption<Int64, List<Int64>>) {
-        resume with s.intlintRes.isEmpty()
-    } handle(e: GetRandomFn<Int64, Int64>) {
-        let chosenFIx = randIntRange(0, s.intIntFns.size)
-        let chosenF = s.intIntFns.remove(at:chosenFIx)
-        resume with chosenF
-    } handle(e: GetRandomFn<Unit, Unit>) {
-        let chosenFIx = randIntRange(0, s.unitUnitFns.size)
-        let chosenF = s.unitUnitFns.remove(at:chosenFIx)
-        resume with chosenF
-    } handle(e: HasFn<Int64, Int64>) {
-        resume with !s.intIntFns.isEmpty()
-    } handle(e: HasFn<Unit, Unit>) {
-        resume with !s.unitUnitFns.isEmpty()
-    } handle(e: BackpocketGenerator<Int64>) {
-        resume with randSmallInt64()
-    } handle(e: BackpocketGenerator<Unit>) {
-        resume with ()
+class ResStash<X, Y> {
+    let s : List<Resumption<X, Y>> = ArrayList<Resumption<X, Y>>()
+
+    func addResumption(r: Resumption<X, Y>): Unit {
+        s.add(r)
+    }
+
+    func randomResumption() : Resumption<X, Y> {
+        let chosenRIx = randIntRange(0, s.size)
+        s.remove(at:chosenRIx)
+    }
+
+    func hasResumption() : Bool {
+        !s.isEmpty()
+    }
+
+    func sHandle<Z>(fn: () -> Z): Z {
+        try {
+            fn()
+        } handle(_: GetRandomResumption<X, Y>) {
+            resume with randomResumption()
+        } handle(_: HasResumption<X, Y>) {
+            resume with hasResumption()
+        } handle(e: AddResumption<X, Y>) {
+            resume with addResumption(e.r)
+        }
+    }
+}
+
+/*
+class FnStash a where
+    GetRandomFn :: a -> Gen f
+    HasFn :: a -> Bool
+*/
+class FnStash<A, B> {
+    let s : List<(A) -> B> = ArrayList<(A) -> B>()
+
+    func setStash(stash: List<(A) -> B>) {
+        for (s_ in stash) { s.add(s_) }
+    }
+
+    func randomFunction() : (A) -> B {
+        let chosenFIx = randIntRange(0, s.size)
+        s.remove(at:chosenFIx)
+    }
+
+    func hasFunction() : Bool {
+        !s.isEmpty()
+    }
+
+    func sHandle<Y>(fn: () -> Y): Y {
+        try {
+            fn()
+        } handle(_: GetRandomFn<A, B>) {
+            resume with randomFunction()
+        } handle(_: HasFn<A, B>) {
+            resume with hasFunction()
+        }
+    }
+}
+
+class Stash_ {
+    let intIntFns : FnStash<Int64, Int64> = FnStash<Int64, Int64>()
+    let intBoolFns : FnStash<Int64, Bool> = FnStash<Int64, Bool>()
+    let intUnitFns : FnStash<Int64, Unit> = FnStash<Int64, Unit>()
+    let unitUnitFns : FnStash<Unit, Unit> = FnStash<Unit, Unit>()
+    let lintBoolFns : FnStash<List<Int64>, Bool> = FnStash<List<Int64>, Bool>()
+    let lintLintFns : FnStash<List<Int64>, List<Int64>> = FnStash<List<Int64>, List<Int64>>()
+    let lintOintFns : FnStash<List<Int64>, Option<Int64>> = FnStash<List<Int64>, Option<Int64>>()
+    let lintIntFns : FnStash<List<Int64>, Int64> = FnStash<List<Int64>, Int64>()
+    let intLintFns : FnStash<Int64, List<Int64>> = FnStash<Int64, List<Int64>>()
+
+    let intIntRes : ResStash<Int64, Int64> = ResStash<Int64, Int64>()
+    let unitUnitRes : ResStash<Unit, Unit> = ResStash<Unit, Unit>()
+    let intlintRes : ResStash<Int64, List<Int64>> = ResStash<Int64, List<Int64>>()
+    let boolIntRes : ResStash<Bool, Int64> = ResStash<Bool, Int64>()
+    let boolLintRes : ResStash<Bool, List<Int64>> = ResStash<Bool, List<Int64>>()
+    let boolBoolRes : ResStash<Bool, Bool> = ResStash<Bool, Bool>()
+
+    let arb : Arbitrary = Arbitrary()
+
+    func handleStash<Y>(fn: () -> Y): Y {
+        // generators for primitive types
+        arb.sHandle {
+        // functions
+        intIntFns.sHandle {
+        intBoolFns.sHandle {
+        intUnitFns.sHandle {
+        unitUnitFns.sHandle {
+        lintBoolFns.sHandle {
+        lintLintFns.sHandle {
+        lintOintFns.sHandle {
+        lintIntFns.sHandle {
+        intLintFns.sHandle {
+        // resumptions
+        intIntRes.sHandle {
+        unitUnitRes.sHandle {
+        intlintRes.sHandle {
+        boolIntRes.sHandle {
+        boolLintRes.sHandle {
+        boolBoolRes.sHandle {
+            fn()
+        }}}}}}}}}}}}}}}}
     }
 }
 
@@ -102,7 +199,7 @@ We do either of these things:
     - generate a B, then run a resumption of type B -> Y
 potentially also:
     - generate a random type that we have resumptions for, and then resume that resumption
-        with our random value
+        with our random value.
 */
 func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     // stash the current resumption
@@ -116,21 +213,25 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     let path = randBool(0.20)
     println("hasFns=${hasFns}, hasPreRs=${hasPreRs}, path=${path}")
     if (path && hasFns) {
+        println("running a new f and resuming a resumption")
         // start a new function, then use post_rs
         let chosenF = perform GetRandomFn<A, B>()
         let chosenR = perform GetRandomResumption<B, Y>()
         let fOut = chosenF(f.arg)
         resume chosenR with fOut
     } else if (hasPreRs) {
+        println("skipping handling with a resumption")
         // resume directly from the function inputs
         let chosenR = perform GetRandomResumption<A, Y>()
         resume chosenR with f.arg
     } else if (hasPreFs) {
+        println("skipping handling with a function")
         let chosenF = perform GetRandomFn<A, Y>()
         chosenF(f.arg)
     } else {
+        println("generating random output and resuming")
         // backup: resume by generating a fresh random argument to r
-        let b0 = perform BackpocketGenerator<B>()
+        let b0 = perform GenRandom<B>()
         let chosenR = perform GetRandomResumption<B, Y>()
         resume chosenR with b0
     }
@@ -147,5 +248,7 @@ func handleUnknown<Y>(fn: () -> Y): Y {
         handleUnknown<Y> { fillFunction<List<Int64>, Bool, Y>(f, r) }
     } handle(f: UnknownFunction<List<Int64>, List<Int64>>, r: Resumption<List<Int64>, Y>) {
         handleUnknown<Y> { fillFunction<List<Int64>, List<Int64>, Y>(f, r) }
+    } handle(f: UnknownFunction<Int64, List<Int64>>, r: Resumption<List<Int64>, Y>) {
+        handleUnknown<Y> { fillFunction<Int64, List<Int64>, Y>(f, r) }
     }
 }

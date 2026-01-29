@@ -50,6 +50,7 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
     }
 }
 
+
 func main2(): Int64 {
     try {
         println(1)

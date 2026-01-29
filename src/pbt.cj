@@ -5,7 +5,7 @@ import std.collection.*
 import std.random.*
 
 class WrongArgumentException <: Exception {
-    public WrongArgumentException(msg: String) {}
+    public WrongArgumentException(_: String) {}
 }
 
 type RUnit = Int8
@@ -62,6 +62,7 @@ func createValue(v : Int8) : Option<Value> {
 func createValue<R>(_ : R) : Option<Value> {
     return None
 }
+
 
 // Enter/exit scopes of generation. Relates RUnits together.
 class EnterScope <: Command<Unit> {

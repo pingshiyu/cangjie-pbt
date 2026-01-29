@@ -11,6 +11,7 @@ withScope("randBool(${p})") {
     return Float64(abs(Int16(i))) > trueLimit // such that reductions towards 0 => turns this false
 }}
 
+
 func randInt8(): Int8 { 
 withScope("randInt8()") { 
     return rand()
@@ -25,7 +26,7 @@ func randInt64() : Int64 {
 withScope("randInt64()") {
     // Int64 consists of 8 consecutive bytes from the randomness list
     var finalVal : Int64 = 0
-    for (i in 0..7) {
+    for (_ in 0..7) {
         let x = rand()
         finalVal = finalVal * Int64(2 ** 8) + Int64(x)
     }
