@@ -145,7 +145,9 @@ func flatMapFaked<A, B>(xs: List<A>): List<B> {
 @StashFromTypes([Int64, Bool, Unit, List<Int64>, Option<Int64>])
 
 main() {
-    mainHarness()
+    // macroMain()
+
+    runHarness()
 
     /*
     let s : StashG_ = StashG_()

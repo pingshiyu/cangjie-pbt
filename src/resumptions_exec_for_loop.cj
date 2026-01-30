@@ -3,6 +3,7 @@ package cangjie_experiments
 import stdx.effect.*
 import std.collection.*
 import std.random.*
+import cangjie_experiments.define.*
 
 /*
 Todo:
@@ -59,11 +60,11 @@ func executor() : Unit {
     }
 }
 
-// in place of any f : A -> B, we can use this as replacement<A, B>
-func replacement<A, B>(a : A) : B {
-    perform Unk() 
+// in place of any f : A -> B, we can use this as randFunc()
+func randFunc<A, B>(): (A) -> B {{ a => 
+    perform Unk()
     return perform GenRandom<B>()
-}
+}}
 
 func handleUnk(f : UnitFn) : Unit {
     try {
@@ -73,11 +74,11 @@ func handleUnk(f : UnitFn) : Unit {
     }
 }
 
-func ignoreArgs<B>(f : () -> B): Unit {
+func ignoreOutput<B>(f : () -> B): () -> Unit {{ =>
     perform Unk()
     let b = f()
     return ()
-}
+}}
 
 func mainHarness(library: List<UnitFn>): Unit {
     let r = Random()
@@ -115,10 +116,16 @@ func effectfulFunction(label: String): UnitFn {{ =>
 }}
 
 func runHarness() : Unit {
-    let lib = ArrayList<UnitFn>([ // these may produce Unk effects.
-        effectfulFunction("one"),
-        effectfulFunction("two"),
-        effectfulFunction("three")
+    // let lib = ArrayList<UnitFn>([ // these may produce Unk effects.
+    //     effectfulFunction("one"),
+    //     effectfulFunction("two"),
+    //     effectfulFunction("three")
+    // ])
+
+    let lib = ArrayList<UnitFn>([
+        ignoreOutput(@RunRandomly([f in randFunc<Int64, Int64>, ls in randList<Int64>(10, randInt64)], mapE)),
+        ignoreOutput(@RunRandomly([f in randFunc<Int64, Bool>, ls in randList<Int64>(10, randInt64)], filterE))
     ])
+
     mainHarness(lib)
 }
