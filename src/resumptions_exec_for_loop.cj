@@ -102,30 +102,3 @@ func mainHarness(library: List<UnitFn>): Unit {
         }
     }}
 }
-
-
-// ========================
-// User code.
-// example functions
-func effectfulFunction(label: String): UnitFn {{ =>
-    println("${label}: entry")
-    perform Unk() // call ext function
-    println("${label}: called Unk 1")
-    perform Unk() // call ext function
-    println("${label}: called Unk 2")
-}}
-
-func runHarness() : Unit {
-    // let lib = ArrayList<UnitFn>([ // these may produce Unk effects.
-    //     effectfulFunction("one"),
-    //     effectfulFunction("two"),
-    //     effectfulFunction("three")
-    // ])
-
-    let lib = ArrayList<UnitFn>([
-        ignoreOutput(@RunRandomly([f in randFunc<Int64, Int64>, ls in randList<Int64>(10, randInt64)], mapE)),
-        ignoreOutput(@RunRandomly([f in randFunc<Int64, Bool>, ls in randList<Int64>(10, randInt64)], filterE))
-    ])
-
-    mainHarness(lib)
-}
