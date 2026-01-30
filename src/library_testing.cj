@@ -141,8 +141,57 @@ func flatMapFaked<A, B>(xs: List<A>): List<B> {
     asList(flatMap(fake<A, Iterable<B>>)(xs))
 }
 
+// uncurried functions
+func filter_<A>(f: (A) -> Bool, xs: List<A>) : List<A> {
+    asList(filter(f)(xs))
+}
+
+func forEach_<A>(f: (A) -> Unit, xs: List<A>): Unit {
+    forEach(f)(xs)
+}
+
+func map_<A, B>(f : (A) -> B, xs : List<A>): List<B> {
+    asList(map(f)(xs))
+}
+
+func filterMap_<A, B>(f : (A) -> ?B, xs : List<A>): List<B> {
+    asList(filterMap(f)(xs))
+}
+
+func flatMap_<A, B>(f : (A) -> List<B>, xs : List<A>): List<B> {
+    asList(flatMap(f)(xs))
+}
+
+// ========================
 //             | 0.   | 1.  | 2.  | 3.         | 4. 
 @StashFromTypes([Int64, Bool, Unit, List<Int64>, Option<Int64>])
+
+// User code.
+// example functions
+func effectfulFunction(label: String): UnitFn {{ =>
+    println("${label}: entry")
+    perform Unk() // call ext function
+    println("${label}: called Unk 1")
+    perform Unk() // call ext function
+    println("${label}: called Unk 2")
+}}
+
+func runHarness() : Unit {
+    // let lib = ArrayList<UnitFn>([ // these may produce Unk effects.
+    //     effectfulFunction("one"),
+    //     effectfulFunction("two"),
+    //     effectfulFunction("three")
+    // ])
+
+    let lib = ArrayList<UnitFn>([
+        @RunRandomly([f in randFunc<Int64, Int64>, ls in randList<Int64>(10, randInt64)], map_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList<Int64>(10, randInt64)], filter_),
+        // @RunRandomly([f in randFunc<Int8, ?Bool>, ls in randList<Int8>(8, randInt8)], filterMap_),
+        @RunRandomly([f in randFunc<Bool, ArrayList<Bool>>, ls in randList<Bool>(10, randBool_(0.50))], flatMap_),
+    ])
+
+    mainHarness(lib)
+}
 
 main() {
     // macroMain()

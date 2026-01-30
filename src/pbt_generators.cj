@@ -11,6 +11,10 @@ withScope("randBool(${p})") {
     return Float64(abs(Int16(i))) > trueLimit // such that reductions towards 0 => turns this false
 }}
 
+func randBool_(p : Float64) : () -> Bool {{ =>
+    randBool(p)
+}}
+
 
 func randInt8(): Int8 { 
 withScope("randInt8()") { 
