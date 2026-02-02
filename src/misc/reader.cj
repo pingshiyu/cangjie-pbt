@@ -1,4 +1,4 @@
-package cangjie_experiments
+package cangjie_experiments.misc
 
 import stdx.effect.*
 

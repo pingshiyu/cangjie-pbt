@@ -1,32 +1,33 @@
-package cangjie_experiments
+package cangjie_experiments.pbt
 
 import std.collection.*
 import std.math.*
 
+
 // p denotes the probability of being true.
-func randBool(p : Float64) : Bool {
+public func randBool(p : Float64) : Bool {
 withScope("randBool(${p})") { 
     let i = rand()
     let trueLimit = 128.0 * (1.0 - p) // abs(v) above this => true
     return Float64(abs(Int16(i))) > trueLimit // such that reductions towards 0 => turns this false
 }}
 
-func randBool_(p : Float64) : () -> Bool {{ =>
+public func randBool_(p : Float64) : () -> Bool {{ =>
     randBool(p)
 }}
 
 
-func randInt8(): Int8 { 
+public func randInt8(): Int8 { 
 withScope("randInt8()") { 
     return rand()
 }}
 
-func randSmallInt64(): Int64 {
+public func randSmallInt64(): Int64 {
 withScope("randSmallInt64()") {
     return Int64(rand())
 }}
 
-func randInt64() : Int64 { 
+public func randInt64() : Int64 { 
 withScope("randInt64()") {
     // Int64 consists of 8 consecutive bytes from the randomness list
     var finalVal : Int64 = 0
@@ -37,7 +38,7 @@ withScope("randInt64()") {
     return finalVal
 }}
 
-func randNat(): List<UInt64> { 
+public func randNat(): List<UInt64> { 
 withScope("randNat()") {
     // pick a random natural number
     let ns : ArrayList<UInt64> = ArrayList<UInt64>()
@@ -51,7 +52,7 @@ withScope("randNat()") {
     return ns
 }}
 
-func randIntRange(begin : Int64, end : Int64) : Int64 {
+public func randIntRange(begin : Int64, end : Int64) : Int64 {
 withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")") {
     // int in range [begin, end)
     let range = end - begin
@@ -61,7 +62,7 @@ withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")") {
     return v
 }}
 
-func randElem<T>(ls : List<T>): T {
+public func randElem<T>(ls : List<T>): T {
 withScope("randElem<T>(ls)") {
     let n : Int64 = ls.size
     let ix: Int64 = randIntRange(0, n)
@@ -69,7 +70,7 @@ withScope("randElem<T>(ls)") {
 }
 }
 
-func randList<T>(eLen : Int64, g : () -> T) : () -> List<T> {{ =>
+public func randList<T>(eLen : Int64, g : () -> T) : () -> List<T> {{ =>
 withScope("randList<T>(g)") { 
     let p : Float64 = 1.0 - 1.0 / Float64(eLen)
     let l : List<T> = ArrayList<T>()
@@ -82,7 +83,7 @@ withScope("randList<T>(g)") {
 }}}
 
 // generate a list of n numbers, with n randomly chosen.
-func randIntListAlt() : List<Int64> {
+public func randIntListAlt() : List<Int64> {
 withScope("randIntList()") {
     let n : Int64 = abs(randInt64())
     let l : List<Int64> = ArrayList<Int64>()

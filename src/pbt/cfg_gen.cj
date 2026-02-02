@@ -1,8 +1,9 @@
-package cangjie_experiments
+package cangjie_experiments.pbt
 
 import stdx.effect.*
 import std.collection.*
 import std.sort.*
+import cangjie_experiments.utils.*
 
 // context free grammar expansion (randomised)
 class S <: Command<Unit> {}
@@ -27,7 +28,7 @@ func expandS(buf : List<String>, verbose: Bool, fn : () -> Unit): Unit {
 }
 
 
-func pbtMain() : Int64 {
+public func pbtMain() : Int64 {
     // create a RandTree and print it
     let t = RandTree(None, None)
     t.addR(6); t.addR(4); t.addR(2); t.addR(100)

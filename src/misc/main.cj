@@ -1,7 +1,9 @@
-package cangjie_experiments
+package cangjie_experiments.misc
 
 import stdx.effect.*
 import std.collection.*
+import cangjie_experiments.utils.*
+import cangjie_experiments.pbt.*
 
 class Eff <: Command<Int64> {}
 
