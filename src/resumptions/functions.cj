@@ -30,8 +30,8 @@ import cangjie_experiments.utils.*
 // containsFaked: create a function that will generate a random `x` and be `contains x` 
 
 // reduce :: (A -> A -> A) -> Iter A -> Option A
-public func reduce_<A>(r: (A, A) -> A, xs: List<A>): Option<A> {
-    return reduce<A>(r)(xs)
+public func reduce_<A>(r: ((A, A)) -> A, xs: List<A>): Option<A> {
+    return reduce<A>(unpack(r))(xs)
 }
 
 // any :: (A -> Bool) -> Iter A -> Bool

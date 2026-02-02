@@ -3,8 +3,8 @@ package cangjie_experiments.resumptions
 import cangjie_experiments.pbt.*
 import std.collection.*
 
-class Arbitrary {
-    func sHandle<Y>(fn: () -> Y): Y {
+public class Arbitrary {
+    public func sHandle<Y>(fn: () -> Y): Y {
         try {
             fn()
         } handle(_: GenRandom<Int64>) {
@@ -16,12 +16,12 @@ class Arbitrary {
         } handle(_: GenRandom<Bool>) {
             resume with randBool(0.50)
         } handle(_: GenRandom<ArrayList<Bool>>) {
-            let vs = this.sHandle {
-                randList(8, randBool_(0.50))()
-            }
+            let vs = randList(8, randBool_(0.50))()
             resume with ArrayList(vs)
         } handle(_: GenRandom<String>) {
             resume with "not random."
-        } 
+        } handle(_: GenRandom<Option<Bool>>) {
+            resume with randOption(0.90, randBool_(0.50))()
+        }
     }
 }

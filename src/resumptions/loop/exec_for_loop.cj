@@ -26,10 +26,12 @@ public func executor() : Unit {
             let runFunction = randBool(0.50)
             let hasResumptions = perform HasRes()
             if (runFunction) {
+                println("starting a new function")
                 // println("running a function")
                 let chosenF = perform GetRandomUnitFn()
                 chosenF()
             } else if (hasResumptions) {
+                println("resuming a resumption")
                 // println("running a resumption")
                 let chosenR = perform GetRandomRes()
                 resume chosenR with ()
@@ -59,26 +61,3 @@ public func ignoreOutput<B>(f : () -> B): () -> Unit {{ =>
     let b = f()
     return ()
 }}
-
-public func mainHarness(library: List<UnitFn>): Unit {
-    let r = Random()
-    let arb = Arbitrary()
-    let ress = ArrayList<Res>()
-    
-    runExtRand(r) { arb.sHandle {
-        try {
-            executor()
-        } handle(e: HasRes) {
-            resume with (ress.size > 0)
-        } handle(e: GetRandomRes) {
-            let chosenRIx = randIntRange(0, ress.size)
-            resume with ress.remove(at:chosenRIx)
-        } handle(e: AddRes) {
-            ress.add(e.r)
-            resume with ()
-        } handle(e: GetRandomUnitFn) {
-            let chosenRIx = randIntRange(0, library.size)
-            resume with library[chosenRIx]
-        }
-    }}
-}

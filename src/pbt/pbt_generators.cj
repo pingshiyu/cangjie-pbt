@@ -93,3 +93,13 @@ withScope("randIntList()") {
     }
     return l
 }}
+
+public func randOption<T>(p: Float64, g : () -> T) : () -> Option<T> {{=>
+withScope("randOption(${p})") {
+    let makeOpt = randBool(p)
+    if (makeOpt) {
+        return Some(g())
+    } else {
+        return None
+    }
+}}}
