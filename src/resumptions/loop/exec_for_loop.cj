@@ -1,32 +1,12 @@
-package cangjie_experiments
+package cangjie_experiments.resumptions.loop
 
 import stdx.effect.*
 import std.collection.*
 import std.random.*
-import cangjie_experiments.define.*
+import cangjie_experiments.pbt.*
+import cangjie_experiments.resumptions.*
 
-/*
-Todo:
-- Turn library functions into ones that uses Unk
-- Try running a library of functions
-- Running functions that requires a state (part of an object) 
-- make private fns public, and run them
-*/
-
-// Unk: effect that takes an A and returns a B
-class Unk <: Command<Unit> {}
-
-type Res = Resumption<Unit, Unit>
-type UnitFn = () -> Unit
-
-class AddRes <: Command<Unit> {
-    public AddRes(let r : Res) {}
-}
-class GetRandomRes <: Command<Res> {}
-class HasRes <: Command<Bool> {}
-class GetRandomUnitFn <: Command<() -> Unit> {}
-
-func executor() : Unit {
+public func executor() : Unit {
     // a list of callables
     // to turn a function of A -> B into a callable,
     // supply all primitive types A with a generator `GenRandom<A>`
@@ -61,12 +41,12 @@ func executor() : Unit {
 }
 
 // in place of any f : A -> B, we can use this as randFunc()
-func randFunc<A, B>(): (A) -> B {{ a => 
+public func randFunc<A, B>(): (A) -> B {{ a => 
     perform Unk()
     return perform GenRandom<B>()
 }}
 
-func handleUnk(f : UnitFn) : Unit {
+public func handleUnk(f : UnitFn) : Unit {
     try {
         f()
     } handle (e : Unk, r : Res) {
@@ -74,13 +54,13 @@ func handleUnk(f : UnitFn) : Unit {
     }
 }
 
-func ignoreOutput<B>(f : () -> B): () -> Unit {{ =>
+public func ignoreOutput<B>(f : () -> B): () -> Unit {{ =>
     perform Unk()
     let b = f()
     return ()
 }}
 
-func mainHarness(library: List<UnitFn>): Unit {
+public func mainHarness(library: List<UnitFn>): Unit {
     let r = Random()
     let arb = Arbitrary()
     let ress = ArrayList<Res>()

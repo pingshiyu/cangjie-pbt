@@ -1,13 +1,13 @@
-package cangjie_experiments
+package cangjie_experiments.utils
 
 import std.collection.*
 import std.core.*
 
-func showList<T>(sep : String, l : List<T>): String where T <: ToString {
+public func showList<T>(sep : String, l : List<T>): String where T <: ToString {
     return "[" + showInterleave(sep, l) + "]"
 }
 
-func showInterleave<T>(sep : String, l : List<T>) : String where T <: ToString {
+public func showInterleave<T>(sep : String, l : List<T>) : String where T <: ToString {
     if (l.isEmpty()) { return "" }
     if (l.size == 1) { return l[0].toString() }
 
@@ -20,18 +20,18 @@ func showInterleave<T>(sep : String, l : List<T>) : String where T <: ToString {
     sb.toString()
 }
 
-func showTabs(n : Int64) : String {
+public func showTabs(n : Int64) : String {
     return "    " * n
 }
 
-func showMaybe<T>(n : Option<T>) : String where T <: ToString {
+public func showMaybe<T>(n : Option<T>) : String where T <: ToString {
     match (n) {
         case None => "None"
         case Some(t) => t.toString()
     }
 }
 
-func pop<T>(al : List<T>) : T {
+public func pop<T>(al : List<T>) : T {
     let rv = al[0]
     al.remove(0..1)
     return rv
@@ -41,10 +41,10 @@ public func printSep() {
     println("------------------")
 }
 
-func unpack<T>(f: ((T, T)) -> T): (T, T) -> T {
+public func unpack<T>(f: ((T, T)) -> T): (T, T) -> T {
     return { x, y => f((x, y)) }
 }
 
-func pack<T>(f: (T, T) -> T): ((T, T)) -> T {
+public func pack<T>(f: (T, T) -> T): ((T, T)) -> T {
     return { t => f(t[0], t[1]) }
 }

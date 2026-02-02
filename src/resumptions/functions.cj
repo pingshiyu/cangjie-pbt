@@ -1,15 +1,56 @@
-package cangjie_experiments
+package cangjie_experiments.resumptions
 
-import cangjie_experiments.define.*
-import stdx.effect.*
 import std.collection.*
-import std.random.*
-import cangjie_experiments.resumptions.*
-import cangjie_experiments.resumptions.loop.*
-import cangjie_experiments.pbt.*
 import cangjie_experiments.utils.*
 
-func asList<A>(it: Iterable<A>): List<A> {
+// ====== toy functions
+
+public func fint_add(a: Int64): (Int64) -> Int64 {{ i =>
+    println("fadd${a}: 1, ${i}")
+    let i0 = fake<Int64, Int64>(i)
+    println("fadd${a}: 2, ${i0}")
+    let i1 = fake<Int64, Int64>(i0)
+    println("fadd${a}: 3, ${i1}")
+    let i2 = fake<Int64, Int64>(i1)
+    println("fadd${a}: 4, ${i2}")
+    let i3 = fake<Int64, Int64>(i2)
+    println("fadd${a}: 5, ${i3}")
+    let i4 = fake<Int64, Int64>(i3)
+    println("fadd${a}: return ${i} + ${i4}")
+    return i + i4
+}}
+
+public func fint_mul(a: Int64): (Int64) -> Int64 {{ i => 
+    println("fmul${a}: 1, ${i}")
+    let i0 = fake<Int64, Int64>(i)
+    println("fmul${a}: 2, ${i0}")
+    let i1 = fake<Int64, Int64>(i0)
+    println("fmul${a}: 3, ${i1}")
+    let i2 = fake<Int64, Int64>(i1)
+    println("fmul${a}: 4, ${i2}")
+    let i3 = fake<Int64, Int64>(i2)
+    println("fmul${a}: 5, ${i3}")
+    let i4 = fake<Int64, Int64>(i3)
+    println("fmul${a}: return ${i} * ${i4}")
+    return i * i4
+}}
+
+public func fi(i : Int64): () -> Unit {{ =>
+    println("f${i}: 1")
+    fake<Unit, Unit>(())
+    println("f${i}: 2")
+    fake<Unit, Unit>(())
+    println("f${i}: 3")
+    fake<Unit, Unit>(())
+    println("f${i}: 4")
+    fake<Unit, Unit>(())
+    println("f${i}: 5")
+    fake<Unit, Unit>(())
+}}
+
+// ======= Example implementations
+
+public func asList<A>(it: Iterable<A>): List<A> {
     let o: List<A> = ArrayList<A>()
     for (e in it) {
         o.add(e)
@@ -20,7 +61,7 @@ func asList<A>(it: Iterable<A>): List<A> {
 // perhaps then we can follow the deduction rules to get the 
 // correct spec for execution?
 
-func mapE<A, B>(f : (A) -> B, ls : List<A>): List<B> {
+public func mapE<A, B>(f : (A) -> B, ls : List<A>): List<B> {
     println("reached mapE")
     let oElems: List<B> = ArrayList<B>()
     println("mapE: oElems prepared.")
@@ -32,7 +73,7 @@ func mapE<A, B>(f : (A) -> B, ls : List<A>): List<B> {
     return oElems
 }
 
-func map2E<A, B>(f : (A) -> B, ls : List<A>): List<B> {
+public func map2E<A, B>(f : (A) -> B, ls : List<A>): List<B> {
     println("reached map2E")
     let oElems: List<B> = ArrayList<B>()
     var i : Int64 = 0
@@ -48,7 +89,7 @@ func map2E<A, B>(f : (A) -> B, ls : List<A>): List<B> {
     return oElems
 }
 
-func filterE<A>(f : (A) -> Bool, ls : List<A>): List<A> {
+public func filterE<A>(f : (A) -> Bool, ls : List<A>): List<A> {
     let oElems: List<A> = ArrayList<A>()
     for (e in ls) {
         if (f(e)) {
@@ -87,114 +128,81 @@ func filterE<A>(f : (A) -> Bool, ls : List<A>): List<A> {
 // containsFaked: create a function that will generate a random `x` and be `contains x` 
 
 // reduce :: (A -> A -> A) -> Iter A -> Option A
-func reduceFaked<A>(xs: List<A>): Option<A> {
+public func reduceFaked<A>(xs: List<A>): Option<A> {
     return reduce<A>(unpack(fake<(A, A), A>))(xs)
 }
 
 // any :: (A -> Bool) -> Iter A -> Bool
-func anyFaked<A>(xs: List<A>): Bool {
+public func anyFaked<A>(xs: List<A>): Bool {
     println("any called")
     return any(fake<A, Bool>)(xs)
 }
 
 // none :: (A -> Bool) -> Iter A -> Bool
-func noneFaked<A>(xs: List<A>): Bool {
+public func noneFaked<A>(xs: List<A>): Bool {
     println("none called")
     return none(fake<A, Bool>)(xs)
 }
 
 // all :: (A -> Bool) -> Iter A -> Bool
-func allFaked<A>(xs: List<A>): Bool {
+public func allFaked<A>(xs: List<A>): Bool {
     println("all called")
     return all(fake<A, Bool>)(xs)
 }
 
 // forEach :: (A -> Unit) -> Iter A -> Unit
-func forEachFaked<A>(xs: List<A>): Unit {
+public func forEachFaked<A>(xs: List<A>): Unit {
     return forEach(fake<A, Unit>)(xs)
 }
 
 // filterE :: (A -> Bool) -> [A] -> [A]
-func filterEFaked<A>(xs : List<A>): List<A> {
+public func filterEFaked<A>(xs : List<A>): List<A> {
     return filterE<A>(fake<A, Bool>, xs)
 }
 
-func filterFaked<A>(xs: List<A>): List<A> {
+public func filterFaked<A>(xs: List<A>): List<A> {
     asList(filter<A>(fake<A, Bool>)(xs))
 }
 
 // mapE :: (A -> B) -> [A] -> [B]
-func mapEFaked<A, B>(xs : List<A>): List<B> {
+public func mapEFaked<A, B>(xs : List<A>): List<B> {
     return mapE<A, B>(fake<A, B>, xs)
 }
 
 // map2E :: (A -> B) -> [A] -> [B]
-func map2EFaked<A, B>(xs : List<A>): List<B> {
+public func map2EFaked<A, B>(xs : List<A>): List<B> {
     return map2E<A, B>(fake<A, B>, xs)
 }
 
-func mapFaked<A, B>(xs: List<A>): List<B> {
+public func mapFaked<A, B>(xs: List<A>): List<B> {
     asList(map(fake<A, B>)(xs))
 }
 
-func filterMapFaked<A, B>(xs: List<A>): List<B> {
+public func filterMapFaked<A, B>(xs: List<A>): List<B> {
     asList(filterMap<A, B>(fake<A, ?B>)(xs))
 }
 
-func flatMapFaked<A, B>(xs: List<A>): List<B> {
+public func flatMapFaked<A, B>(xs: List<A>): List<B> {
     asList(flatMap(fake<A, Iterable<B>>)(xs))
 }
 
 // uncurried functions
-func filter_<A>(f: (A) -> Bool, xs: List<A>) : List<A> {
+public func filter_<A>(f: (A) -> Bool, xs: List<A>) : List<A> {
     asList(filter(f)(xs))
 }
 
-func forEach_<A>(f: (A) -> Unit, xs: List<A>): Unit {
+public func forEach_<A>(f: (A) -> Unit, xs: List<A>): Unit {
     forEach(f)(xs)
 }
 
-func map_<A, B>(f : (A) -> B, xs : List<A>): List<B> {
+public func map_<A, B>(f : (A) -> B, xs : List<A>): List<B> {
     asList(map(f)(xs))
 }
 
-func filterMap_<A, B>(f : (A) -> ?B, xs : List<A>): List<B> {
+public func filterMap_<A, B>(f : (A) -> ?B, xs : List<A>): List<B> {
     asList(filterMap(f)(xs))
 }
 
-func flatMap_<A, B>(f : (A) -> List<B>, xs : List<A>): List<B> {
+public func flatMap_<A, B>(f : (A) -> List<B>, xs : List<A>): List<B> {
     asList(flatMap(f)(xs))
-}
-
-// User code.
-// example functions
-func effectfulFunction(label: String): UnitFn {{ =>
-    println("${label}: entry")
-    perform Unk() // call ext function
-    println("${label}: called Unk 1")
-    perform Unk() // call ext function
-    println("${label}: called Unk 2")
-}}
-
-func runHarness() : Unit {
-    // let lib = ArrayList<UnitFn>([ // these may produce Unk effects.
-    //     effectfulFunction("one"),
-    //     effectfulFunction("two"),
-    //     effectfulFunction("three")
-    // ])
-
-    let lib = ArrayList<UnitFn>([
-        @RunRandomly([f in randFunc<Int64, Int64>, ls in randList<Int64>(10, randInt64)], map_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList<Int64>(10, randInt64)], filter_),
-        // @RunRandomly([f in randFunc<Int8, ?Bool>, ls in randList<Int8>(8, randInt8)], filterMap_),
-        @RunRandomly([f in randFunc<Bool, ArrayList<Bool>>, ls in randList<Bool>(10, randBool_(0.50))], flatMap_),
-    ])
-
-    mainHarness(lib)
-}
-
-main() {
-
-    runHarness()
-    return 0
 }

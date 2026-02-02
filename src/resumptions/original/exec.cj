@@ -1,91 +1,9 @@
-package cangjie_experiments
+package cangjie_experiments.resumptions.original
 
 import std.collection.*
 import stdx.effect.*
-
-class UnhandledInstance <: Exception {
-    public init(msg: String) {
-        super(msg)
-    }
-
-    public override func getClassName(): String {
-        "UnhandledInstance"
-    }
-}
-
-// UnknownFunction :: A -> B
-class UnknownFunction<A, B> <: Command<B> {
-    public UnknownFunction(let arg : A) {}
-    public func defaultImpl() : B {
-        throw UnhandledInstance("UnknownFunction")
-    }
-}
-
-class GenRandom<B> <: Command<B> {
-    public func defaultImpl() : B {
-        throw UnhandledInstance("GenRandom")
-    }
-}
-
-func fake<A, B>(a : A): B {
-    return perform UnknownFunction<A, B>(a)
-}
-
-class GetRandomFn<A, B> <: Command<(A) -> B> {
-    public func defaultImpl() : (A) -> B {
-        throw UnhandledInstance("GetRandomFn")
-    }
-}
-
-class GetRandomResumption<X, Y> <: Command<Resumption<X, Y>> {
-    public func defaultImpl() : Resumption<X, Y> {
-        throw UnhandledInstance("GetRandomResumption")
-    }
-}
-
-class AddResumption<X, Y> <: Command<Unit> {
-    AddResumption(let r: Resumption<X, Y>) {}
-    public func defaultImpl() : Unit {
-        throw UnhandledInstance("AddResumption")
-    }
-}
-
-class HasResumption<X, Y> <: Command<Bool> {
-    public func defaultImpl(): Bool {
-        println("warning: defaultImpl for HasResumption used")
-        return false
-    }
-}
-
-class HasFn<A, B> <: Command<Bool> {
-    public func defaultImpl(): Bool {
-        println("warning: defaultImpl for HasFn used")
-        return false
-    }
-}
-
-class Arbitrary {
-    func sHandle<Y>(fn: () -> Y): Y {
-        try {
-            fn()
-        } handle(_: GenRandom<Int64>) {
-            resume with randSmallInt64()
-        } handle(_: GenRandom<Int8>) {
-            resume with randInt8()
-        } handle(_: GenRandom<Unit>) {
-            resume with ()
-        } handle(_: GenRandom<Bool>) {
-            resume with randBool(0.50)
-        } handle(_: GenRandom<ArrayList<Bool>>) {
-            let vs = this.sHandle {
-                randList<Bool>(8, randBool_(0.50))()
-            }
-            resume with ArrayList(vs)
-        } handle(_: GenRandom<String>) {
-            resume with "not random."
-        } 
-    }
-}
+import cangjie_experiments.pbt.*
+import cangjie_experiments.resumptions.*
 
 /*
 // Stash typeclass

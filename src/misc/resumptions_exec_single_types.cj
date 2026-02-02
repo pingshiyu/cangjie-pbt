@@ -1,8 +1,11 @@
-package cangjie_experiments
+package cangjie_experiments.misc
 
 import stdx.effect.*
 import std.collection.*
 import std.random.*
+import cangjie_experiments.resumptions.*
+import cangjie_experiments.pbt.*
+import cangjie_experiments.resumptions.*
 
 func runBackpocket<R>(fn: () -> R) {
     try {
@@ -293,45 +296,3 @@ func main_run_resumptions_once() {
     }
 }
 
-func fint_add(a: Int64): (Int64) -> Int64 {{ i =>
-    println("fadd${a}: 1, ${i}")
-    let i0 = fake<Int64, Int64>(i)
-    println("fadd${a}: 2, ${i0}")
-    let i1 = fake<Int64, Int64>(i0)
-    println("fadd${a}: 3, ${i1}")
-    let i2 = fake<Int64, Int64>(i1)
-    println("fadd${a}: 4, ${i2}")
-    let i3 = fake<Int64, Int64>(i2)
-    println("fadd${a}: 5, ${i3}")
-    let i4 = fake<Int64, Int64>(i3)
-    println("fadd${a}: return ${i} + ${i4}")
-    return i + i4
-}}
-
-func fint_mul(a: Int64): (Int64) -> Int64 {{ i => 
-    println("fmul${a}: 1, ${i}")
-    let i0 = fake<Int64, Int64>(i)
-    println("fmul${a}: 2, ${i0}")
-    let i1 = fake<Int64, Int64>(i0)
-    println("fmul${a}: 3, ${i1}")
-    let i2 = fake<Int64, Int64>(i1)
-    println("fmul${a}: 4, ${i2}")
-    let i3 = fake<Int64, Int64>(i2)
-    println("fmul${a}: 5, ${i3}")
-    let i4 = fake<Int64, Int64>(i3)
-    println("fmul${a}: return ${i} * ${i4}")
-    return i * i4
-}}
-
-func fi(i : Int64): () -> Unit {{ =>
-    println("f${i}: 1")
-    fake<Unit, Unit>(())
-    println("f${i}: 2")
-    fake<Unit, Unit>(())
-    println("f${i}: 3")
-    fake<Unit, Unit>(())
-    println("f${i}: 4")
-    fake<Unit, Unit>(())
-    println("f${i}: 5")
-    fake<Unit, Unit>(())
-}}

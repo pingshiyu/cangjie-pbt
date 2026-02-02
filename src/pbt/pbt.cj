@@ -1,8 +1,9 @@
-package cangjie_experiments
+package cangjie_experiments.pbt
 
 import stdx.effect.*
 import std.collection.*
 import std.random.*
+import cangjie_experiments.utils.*
 
 class WrongArgumentException <: Exception {
     public WrongArgumentException(_: String) {}
@@ -14,7 +15,7 @@ type RUnit = Int8
 class Rand <: Command<RUnit> {}
 
 // randomness effect, allows for injection of randomness externally
-func rand() : RUnit {
+public func rand() : RUnit {
     perform Rand()
 }
 
@@ -26,20 +27,20 @@ class OutOfRand <: Command<Unit> {
     public OutOfRand() {}
 }
 
-func handleOutOfRandAsError<R>(fn: () -> R) : R {
+public func handleOutOfRandAsError<R>(fn: () -> R) : R {
     try { fn() } handle(_ : OutOfRand) {
         throw WrongArgumentException("Out of random bits!")
     }
 }
 
 // unions of all the generateable pure values
-enum Value {
+public enum Value {
     | BoolV(Bool)
     | I64V(Int64)
     | I8V(Int8)
 }
 
-func showValue(v : Value) : String {
+public func showValue(v : Value) : String {
     match (v) {
         case BoolV(b) => b.toString() + " : i1"
         case I64V(i) => i.toString() + " : i64"
@@ -47,19 +48,19 @@ func showValue(v : Value) : String {
     }
 }
 
-func createValue(v : Bool) : Option<Value> {
+public func createValue(v : Bool) : Option<Value> {
     return BoolV(v)
 }
 
-func createValue(v : Int64) : Option<Value> {
+public func createValue(v : Int64) : Option<Value> {
     return I64V(v)
 }
 
-func createValue(v : Int8) : Option<Value> {
+public func createValue(v : Int8) : Option<Value> {
     return I8V(v)
 }
 
-func createValue<R>(_ : R) : Option<Value> {
+public func createValue<R>(_ : R) : Option<Value> {
     return None
 }
 
@@ -73,7 +74,7 @@ class ExitScope <: Command<Unit> {
     public ExitScope(let gv : ?Value) {}
 } 
 
-func withScope<R>(fnName : String, fn : () -> R) : R {
+public func withScope<R>(fnName : String, fn : () -> R) : R {
     perform EnterScope(fnName)
     let rv = fn()
     let storeVal : Option<Value> = createValue(rv)
@@ -83,7 +84,7 @@ func withScope<R>(fnName : String, fn : () -> R) : R {
 
 // basic interpreter of randomness. 
 // consumes a little bit of the random list
-func interpRand<R>(rl : List<RUnit>, fn : () -> R) : R {
+public func interpRand<R>(rl : List<RUnit>, fn : () -> R) : R {
     try {
         fn ()
     } handle(_ : Rand) {
@@ -102,7 +103,7 @@ func interpRand<R>(rl : List<RUnit>, fn : () -> R) : R {
 // when interpreting randomness, also store the sequence in some structure
 // this is so that we can do reductions in the future
 // PRNG that is used together in a call are stored in the same node
-class RandTree {
+public class RandTree {
     // node -> n children
     let label : ?String
     let node : List<RUnit> 
@@ -204,7 +205,7 @@ class RandTree {
     }
 }
 
-func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
+public func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
     let newRt : RandTree = RandTree(
         rt.label,
         ArrayList<RUnit>(rt.node),
@@ -219,7 +220,7 @@ func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
     return newRt
 }
 
-func interpRandTree<R>(rl : List<RUnit>, rt : Box<RandTree>, fn : () -> R) : R {
+public func interpRandTree<R>(rl : List<RUnit>, rt : Box<RandTree>, fn : () -> R) : R {
     try {
         fn()
     } handle(_ : Rand) {
@@ -232,7 +233,7 @@ func interpRandTree<R>(rl : List<RUnit>, rt : Box<RandTree>, fn : () -> R) : R {
     }
 }
 
-func interpExtRandTree<R>(rs: Random, rt: Box<RandTree>, fn: () -> R) : R {
+public func interpExtRandTree<R>(rs: Random, rt: Box<RandTree>, fn: () -> R) : R {
     try {
         fn()
     } handle(_ : Rand) {
@@ -242,7 +243,7 @@ func interpExtRandTree<R>(rs: Random, rt: Box<RandTree>, fn: () -> R) : R {
     }
 }
 
-func interpExtRand<R>(rs: Random, fn : () -> R) : R {
+public func interpExtRand<R>(rs: Random, fn : () -> R) : R {
     try {
         fn()
     } handle(_ : Rand) {
@@ -250,7 +251,7 @@ func interpExtRand<R>(rs: Random, fn : () -> R) : R {
     }
 }
 
-func interpScope<R>(rt : Box<RandTree>, fn : () -> R) : R {
+public func interpScope<R>(rt : Box<RandTree>, fn : () -> R) : R {
     try {
         fn ()
     } handle(e : EnterScope) {
@@ -262,7 +263,7 @@ func interpScope<R>(rt : Box<RandTree>, fn : () -> R) : R {
     }
 }
 
-func ignoreScope<R>(fn : () -> R) : R {
+public func ignoreScope<R>(fn : () -> R) : R {
     try {
         fn()
     } handle(_ : EnterScope) {
@@ -272,28 +273,28 @@ func ignoreScope<R>(fn : () -> R) : R {
     }
 }
 
-func runRand<R>(rl : List<RUnit>, fn : () -> R) : R {
+public func runRand<R>(rl : List<RUnit>, fn : () -> R) : R {
     ignoreScope { interpRand(rl, fn) }
 }
 
-func runExtRand<R>(r: Random, fn : () -> R) : R {
+public func runExtRand<R>(r: Random, fn : () -> R) : R {
     ignoreScope { interpExtRand(r, fn) }
 }
 
-func runRandTracked<R>(rl: List<RUnit>, rt: Box<RandTree>, fn : () -> R): R {
+public func runRandTracked<R>(rl: List<RUnit>, rt: Box<RandTree>, fn : () -> R): R {
     interpScope(rt) {
         interpRandTree(rl, rt, fn)
     }
 }
 
-func runExtRandTracked<R>(r: Random, rt: Box<RandTree>, fn : () -> R) : R {
+public func runExtRandTracked<R>(r: Random, rt: Box<RandTree>, fn : () -> R) : R {
     interpScope(rt) {
         interpExtRandTree(r, rt, fn)
     }
 }
 
 // returns Some(rt) if a bug was found, None otherwise.
-func findCounterExampleTree<R>(seed: UInt64, iters: Int, g : () -> R, fn: (R) -> Bool): Option<RandTree> {
+public func findCounterExampleTree<R>(seed: UInt64, iters: Int, g : () -> R, fn: (R) -> Bool): Option<RandTree> {
     // try to find a counterexample, then return evidence of bug being triggered
     let r : Random = Random(seed)
     for (_ in 0..iters) {
@@ -307,7 +308,7 @@ func findCounterExampleTree<R>(seed: UInt64, iters: Int, g : () -> R, fn: (R) ->
     return None
 }
 
-func findCounterExample<R>(seed: UInt64, iters: Int, g: () -> R, fn: (R) -> Bool): Option<R> {
+public func findCounterExample<R>(seed: UInt64, iters: Int, g: () -> R, fn: (R) -> Bool): Option<R> {
     let bugTrigger : Option<RandTree> = findCounterExampleTree(seed, iters, g, fn)
     match (bugTrigger) {
         case Some(bt) => Some(runRand(bt.randList(), g))
@@ -315,7 +316,7 @@ func findCounterExample<R>(seed: UInt64, iters: Int, g: () -> R, fn: (R) -> Bool
     }
 }
 
-func findSmallCounterExample<R>(seed: UInt64, iters: Int, g: () -> R, fn: (R) -> Bool): Option<R> {
+public func findSmallCounterExample<R>(seed: UInt64, iters: Int, g: () -> R, fn: (R) -> Bool): Option<R> {
     // property to reveal this bug: len(list) == len(sorted(list))
     let bugTrigger : Option<RandTree> = findCounterExampleTree(seed, iters, g, fn)
 
