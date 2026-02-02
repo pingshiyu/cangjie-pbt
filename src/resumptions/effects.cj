@@ -18,7 +18,7 @@ public type Res = Resumption<Unit, Unit>
 public type UnitFn = () -> Unit
 
 public class AddRes <: Command<Unit> {
-    public AddRes(let r : Res) {}
+    public AddRes(public let r : Res) {}
 }
 public class GetRandomRes <: Command<Res> {}
 public class HasRes <: Command<Bool> {}

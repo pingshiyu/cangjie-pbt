@@ -3,13 +3,13 @@ package cangjie_experiments.pbt
 import std.collection.*
 
 // reduces the subtree 
-public interface ReductionStrategy {
+interface ReductionStrategy {
     /* Make a single reduction to `wt`.
     Return true iff the tree has been changed. */
-    public func findInterestingReduction(wt: RandTree, interesting: (List<RUnit>) -> Bool): Bool
+    func findInterestingReduction(wt: RandTree, interesting: (List<RUnit>) -> Bool): Bool
 
     /* Returns an iterable to all subtrees of `t`: this includes `t` itself. */
-    static public func refsToSubtrees(t: RandTree): Iterable<RandTree> {
+    static func refsToSubtrees(t: RandTree): Iterable<RandTree> {
         let lt = LinkedList<RandTree>()
         func refsToSubtrees_(lt : LinkedList<RandTree>, t : RandTree): Unit {
             lt.addLast(t)
