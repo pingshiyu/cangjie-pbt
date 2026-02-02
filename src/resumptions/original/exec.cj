@@ -164,7 +164,7 @@ func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     }
 }
 
-func handleUnknown<Y>(fn: () -> Y): Y {
+public func handleUnknown<Y>(fn: () -> Y): Y {
     try {
         fn()
     } handle(f: UnknownFunction<Int64, Bool>, r: Resumption<Bool, Y>) {
