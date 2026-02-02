@@ -5,7 +5,7 @@ import std.collection.*
 import std.random.*
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.pbt.*
-import cangjie_experiments.resumptions.*
+import cangjie_experiments.resumptions.original.*
 
 func runBackpocket<R>(fn: () -> R) {
     try {

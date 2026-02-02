@@ -48,3 +48,11 @@ public func unpack<T>(f: ((T, T)) -> T): (T, T) -> T {
 public func pack<T>(f: (T, T) -> T): ((T, T)) -> T {
     return { t => f(t[0], t[1]) }
 }
+
+public func asList<A>(it: Iterable<A>): List<A> {
+    let o: List<A> = ArrayList<A>()
+    for (e in it) {
+        o.add(e)
+    }
+    return o
+}

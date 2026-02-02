@@ -27,7 +27,6 @@ func expandS(buf : List<String>, verbose: Bool, fn : () -> Unit): Unit {
     }
 }
 
-
 public func pbtMain() : Int64 {
     // create a RandTree and print it
     let t = RandTree(None, None)
