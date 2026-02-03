@@ -9,25 +9,15 @@ import cangjie_experiments.utils.*
 // - either quickcheck approach of Gen (a -> b) = a -> Gen b
 // - or using our approach of resuming, if possible, a resumption
 
-// good options: option.cj, array.cj, concurrent_hash_map.cj, middle_operation.cj,
-//  end_operation.cj
+/*
+good options: 
+- option.cj
+- array.cj
+- concurrent_hash_map.cj
+- DONE: middle_operation.cj,
+- DONE: end_operation.cj
+*/
 
-// currently: experiment with f(i), filterE, mapE, map2E
-
-// std.collections.end_collection: reduce<T>(operation: (T, T) -> T): (Iterable<T>) -> Option<T>
-// std.collections.end_collection: isEmpty<T>(it: Iterable<T>): Bool
-// std.collections.end_collection: count<T>(it: Iterable<T>): Int64
-// std.collections.end_collection: contains<T>(element: T): (Iterable<T>) -> Bool
-// std.collections.end_collection: none<T>(predicate: (T) -> Bool): (Iterable<T>) -> Bool
-
-// f(i) :: Int -> Int
-
-// isEmpty :: Iter A -> Bool
-
-// count :: Iter A -> Int64
-
-// contains :: A -> Iter A -> Bool
-// containsFaked: create a function that will generate a random `x` and be `contains x` 
 
 // reduce :: (A -> A -> A) -> Iter A -> Option A
 public func reduce_<A>(r: ((A, A)) -> A, xs: List<A>): Option<A> {
@@ -69,4 +59,46 @@ public func flatMap_<A, B>(f: (A) -> Iterable<B>, xs: List<A>): List<B> {
 
 public func forEach_<A>(f: (A) -> Unit, xs: List<A>): Unit {
     forEach(f)(xs)
+}
+
+// End operations from end_operation.cj
+public func fold_<T, R>(f: ((R, T)) -> R, initial: R, xs: List<T>): R {
+    return fold(initial, unpack2(f))(xs)
+}
+
+public func contains_<T>(element: T, xs: List<T>): Bool where T <: Equatable<T> {
+    return contains(element)(xs)
+}
+
+public func at_<T>(n: Int64, xs: List<T>): Option<T> {
+    return at(n)(xs)
+}
+
+// Middle operations from middle_operation.cj
+public func enumerate_<T>(xs: List<T>): List<(Int64, T)> {
+    return asList(enumerate(xs))
+}
+
+public func flatten_<T, R>(xs: List<T>): List<R> where T <: Iterable<R> {
+    return asList(flatten(xs))
+}
+
+public func zip_<T, R>(other: List<R>, xs: List<T>): List<(T, R)> {
+    return asList(zip(other)(xs))
+}
+
+public func concat_<T>(other: List<T>, xs: List<T>): List<T> {
+    return asList(concat(other)(xs))
+}
+
+public func skip_<T>(count: Int64, xs: List<T>): List<T> {
+    return asList(skip(count)(xs))
+}
+
+public func take_<T>(count: Int64, xs: List<T>): List<T> {
+    return asList(take(count)(xs))
+}
+
+public func step_<T>(count: Int64, xs: List<T>): List<T> {
+    return asList(step(count)(xs))
 }

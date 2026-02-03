@@ -50,15 +50,36 @@ func runHarness() : Unit {
     // ])
 
     let lib = ArrayList<UnitFn>([
-        @RunRandomly([f in randFunc<Int64, Int64>, ls in randList<Int64>(10, randInt64)], map_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList<Int64>(10, randInt64)], filter_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList<Int64>(10, randInt64)], all_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList<Int64>(10, randInt64)], none_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList<Int64>(10, randInt64)], any_),
-        @RunRandomly([f in randFunc<(Int8, Int8), Int8>, ls in randList<Int8>(10, randInt8)], reduce_),
-        @RunRandomly([f in randFunc<Int8, ?Bool>, ls in randList<Int8>(8, randInt8)], filterMap_),
-        @RunRandomly([f in randFunc<Bool, ArrayList<Bool>>, ls in randList<Bool>(10, randBool_(0.50))], flatMap_),
-        @RunRandomly([f in randFunc<Bool, Unit>, ls in randList<Bool>(10, randBool_(0.30))], forEach_)
+        // these functions are higher order
+        @RunRandomly([f in randFunc<Int64, Int64>, ls in randList(10, randInt64)], map_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(10, randInt64)], filter_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(10, randInt64)], all_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(10, randInt64)], none_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(10, randInt64)], any_),
+        @RunRandomly([f in randFunc<(Int8, Int8), Int8>, ls in randList(10, randInt8)], reduce_),
+        @RunRandomly([f in randFunc<Int8, ?Bool>, ls in randList(8, randInt8)], filterMap_),
+        @RunRandomly([f in randFunc<Bool, ArrayList<Bool>>, ls in randList(10, randBool_(0.50))], flatMap_),
+        @RunRandomly([f in randFunc<Bool, Unit>, ls in randList(10, randBool_(0.30))], forEach_),
+        @RunRandomly([f in randFunc<(Int64, Bool), Int64>, e in randInt64, ls in randList(10, randBool_(0.30))], fold_),
+        
+        // End operations from end_operation.cj
+        @RunRandomly([ls in randList(10, randInt64)], isEmpty),
+        @RunRandomly([ls in randList(10, randInt64)], count),
+        @RunRandomly([element in randInt64_(), ls in randList(10, randInt64)], contains_),
+        @RunRandomly([ls in randList(10, randInt64)], max),
+        @RunRandomly([ls in randList(10, randInt64)], min),
+        @RunRandomly([ls in randList(10, randInt64)], first),
+        @RunRandomly([ls in randList(10, randInt64)], last),
+        @RunRandomly([n in randIntRange_(0, 10), ls in randList(10, randInt64)], at_),
+        
+        // Middle operations from middle_operation.cj
+        @RunRandomly([ls in randList(10, randInt64)], enumerate_),
+        @RunRandomly([ls in randNestedList(5, randInt64_())], flatten_),
+        @RunRandomly([other in randList(8, randInt64), ls in randList(10, randInt64)], zip_),
+        @RunRandomly([other in randList(5, randInt64), ls in randList(8, randInt64)], concat_),
+        @RunRandomly([count in randIntRange_(0, 10), ls in randList(10, randInt64)], skip_),
+        @RunRandomly([count in randIntRange_(0, 10), ls in randList(10, randInt64)], take_),
+        @RunRandomly([count in randIntRange_(1, 5), ls in randList(10, randInt64)], step_),
     ])
 
     mainHarness(lib)
