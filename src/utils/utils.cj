@@ -49,6 +49,24 @@ public func pack<T>(f: (T, T) -> T): ((T, T)) -> T {
     return { t => f(t[0], t[1]) }
 }
 
+// More general unpack functions for different input/output types
+public func unpack2<A, B, R>(f: ((A, B)) -> R): (A, B) -> R {
+    return { x, y => f((x, y)) }
+}
+
+public func pack2<A, B, R>(f: (A, B) -> R): ((A, B)) -> R {
+    return { t => f(t[0], t[1]) }
+}
+
+// Three-parameter versions
+public func unpack3<A, B, C, R>(f: ((A, B, C)) -> R): (A, B, C) -> R {
+    return { x, y, z => f((x, y, z)) }
+}
+
+public func pack3<A, B, C, R>(f: (A, B, C) -> R): ((A, B, C)) -> R {
+    return { t => f(t[0], t[1], t[2]) }
+}
+
 public func asList<A>(it: Iterable<A>): List<A> {
     let o: List<A> = ArrayList<A>()
     for (e in it) {

@@ -102,4 +102,24 @@ withScope("randOption(${p})") {
     } else {
         return None
     }
-}}}
+ }}}
+
+// Generator functions that return a function
+public func randInt64_(): () -> Int64 {{=>
+    randInt64()
+ }}
+
+public func randIntRange_(begin: Int64, end: Int64): () -> Int64 {{=>
+    randIntRange(begin, end)
+ }}
+
+// Generator for nested lists (lists of lists)
+public func randNestedList<T>(eLen: Int64, g: () -> T): () -> List<List<T>> {{=>
+    let p: Float64 = 1.0 - 1.0 / Float64(eLen)
+    let outerList: List<List<T>> = ArrayList<List<T>>()
+    while (randBool(p)) {
+        let innerList: List<T> = randList(eLen, g)()
+        outerList.add(innerList)
+    }
+    return outerList
+ }}
