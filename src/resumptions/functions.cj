@@ -31,13 +31,11 @@ public func any_<A>(p: (A) -> Bool, xs: List<A>): Bool {
 
 // none :: (A -> Bool) -> Iter A -> Bool
 public func none_<A>(f: (A) -> Bool, xs: List<A>): Bool {
-    println("none called")
     return none(f)(xs)
 }
 
 // all :: (A -> Bool) -> Iter A -> Bool
 public func all_<A>(f: (A) -> Bool, xs: List<A>): Bool {
-    println("all called")
     return all(f)(xs)
 }
 
@@ -101,4 +99,8 @@ public func take_<T>(count: Int64, xs: List<T>): List<T> {
 
 public func step_<T>(count: Int64, xs: List<T>): List<T> {
     return asList(step(count)(xs))
+}
+
+public func inspect_<T>(f : (T) -> Unit, xs: List<T>) : List<T> {
+    return asList(inspect(f)(xs))
 }
