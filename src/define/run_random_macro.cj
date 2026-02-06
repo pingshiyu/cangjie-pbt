@@ -85,6 +85,9 @@ public macro RunRandomly(input: Tokens): Tokens {
     
     // Generate the closure: {=> let x = randInt64(); let y = randBool(); f(x, y)}
     var result = quote(ignoreOutput) + Token(TokenKind.LPAREN, "(") + quote({=>)
+
+    let funcRefStr = funcRef.toTokens().toString()
+    result += quote(println("starting: " + $(funcRefStr));)
     
     // Add variable assignments
     for (i in 0..varNames.size) {
@@ -95,7 +98,7 @@ public macro RunRandomly(input: Tokens): Tokens {
     }
     
     // Add function call with all variables
-    var funcCallTokens = quote($(funcRef))
+    var funcCallTokens = quote(let out = $(funcRef))
     if (varNames.size > 0) {
         funcCallTokens += Token(TokenKind.LPAREN, "(")
         for (i in 0..varNames.size) {
@@ -107,7 +110,10 @@ public macro RunRandomly(input: Tokens): Tokens {
         }
         funcCallTokens += Token(TokenKind.RPAREN, ")")
     }
-    result += funcCallTokens + quote(}) + Token(TokenKind.RPAREN, ")")
+    result += funcCallTokens + quote(;)
+    result += quote(println("ending: " + $(funcRefStr));)
+    result += quote(return out)
+    result += quote(}) + Token(TokenKind.RPAREN, ")")
     
     return result
 }
