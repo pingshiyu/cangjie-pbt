@@ -19,7 +19,7 @@ func effectfulFunction(label: String): UnitFn {{ =>
     println("${label}: called Switch 2")
 }}
 
-func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f : () -> Unit) : Unit {
+func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f0: Int64, f : () -> Unit) : Unit {
     let r = match (seed) {
         case Some(s) => Random(s)
         case None => Random()
@@ -27,7 +27,7 @@ func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f : () -> Unit) : Uni
     let arb = Arbitrary()
     let ress = ArrayList<Res>()
     
-    runExtRand(r) { arb.sHandle { handleStateV(()) {
+    runExtRand(r) { arb.sHandle { handleStateV(()) { handleFuel(f0) {   
         try {
             f()
         } handle(e: HasRes) {
@@ -40,9 +40,17 @@ func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f : () -> Unit) : Uni
             resume with ()
         } handle(e: GetRandomUnitFn) {
             let chosenRIx = randIntRange(0, lib.size)
+            perform ConsumeFuel()
             resume with lib[chosenRIx]
+        } handle(e: RunFunction) {
+            if (perform HasFuel()) {
+                perform ConsumeFuel()
+                resume with randBool(e.p)
+            } else {
+                resume with false
+            }
         }
-    }}}
+    }}}}
 }
 
 func randObject<T>() : T {
@@ -119,19 +127,19 @@ func getContext() : ArrayList<UnitFn> {
 
 main() {
     let lib = getContext()
-    // runInContext(None, lib) {
-    //     executeRandomly(50)
+    // runInContext(None, lib, 100) {
+    //     executeRandomly(100)
     // }
 
     // expectation: two runs should result in the same sequence of functions called: the 
     // calls to the unknown functions `f` are controlled.
     println("comparing two runs of functions:")
     let seed : Option<UInt64> = Some(Random().nextUInt64()) // None // Some(55)
-    runInContext(seed, lib) {
+    runInContext(seed, lib, 10) {
         executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], map_))
     }
     println("================================================")
-    runInContext(seed, lib) {
+    runInContext(seed, lib, 10) {
         executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], filter_))
     }
     return 0
