@@ -34,6 +34,25 @@ public class UnhandledInstance <: Exception {
     }
 }
 
+class IsDone <: Command<Bool> {}
+class SetDone <: Command<Unit> {
+    public SetDone(public let s : Bool) {}
+}
+class StoreV<R> <: Command<Unit> {
+    public StoreV(public let s : R) {}
+}
+class GetV<R> <: Command<R> {}
+
+public class RunFunction <: Command<Bool> {
+    public RunFunction(public let p : Float64) {}
+}
+
+public class SetFuel <: Command<Unit> {
+    public SetFuel(public let f : Int64) {}
+}
+public class ConsumeFuel <: Command<Unit> {}
+public class HasFuel <: Command<Bool> {}
+
 // ================ Template public type resumptions ================
 
 // UnknownFunction :: A -> B

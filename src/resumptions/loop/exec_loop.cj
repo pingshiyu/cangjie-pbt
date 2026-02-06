@@ -6,15 +6,6 @@ import std.random.*
 import cangjie_experiments.pbt.*
 import cangjie_experiments.resumptions.*
 
-class IsDone <: Command<Bool> {}
-class SetDone <: Command<Unit> {
-    public SetDone(public let s : Bool) {}
-}
-class StoreV<R> <: Command<Unit> {
-    public StoreV(public let s : R) {}
-}
-class GetV<R> <: Command<R> {}
-
 public func withMarkers<R>(f : () -> R): Unit {
     perform SetDone(false)
     let retVal = f()
@@ -40,9 +31,31 @@ public func handleStateV<R>(r0 : R, f : () -> R): R {
     }
 }
 
-func execute(): Unit {
+public func handleFuel<R>(f0 : Int64, f : () -> R): R {
+    let fuel = Box<Int64>(f0)
+    try {
+        f()
+    } handle(e: SetFuel) {
+        fuel.value = e.f
+        resume with ()
+    } handle(e: HasFuel) {
+        resume with fuel.value > 0
+    } handle(e: ConsumeFuel) {
+        fuel.value -= 1
+        resume with ()
+    } handle(e: RunFunction) {
+        if (fuel.value > 0) {
+            fuel.value -= 1
+            resume with randBool(e.p)
+        } else {
+            resume with false
+        }
+    }
+}
+
+func execute(p : Float64): Unit {
     handleSwitch {
-        let runFunction = randBool(0.50)
+        let runFunction = perform RunFunction(p)
         let hasResumptions = perform HasRes()
         if (runFunction) {
             // println("starting a new function")
@@ -58,31 +71,22 @@ func execute(): Unit {
     }
 }
 
-// ensure we complete the entry function 
+/*
+Ensures that the entry function `f` is executed until it terminates.
+Input `n` controls the maximum number of parallel function calls created.
+Larger `n` means longer execution time.
+*/
 public func executeUntilDone<R>(f : () -> R) : R {
     handleSwitch { withMarkers { f() } }
     while (!(perform IsDone())) {
-        execute()
+        execute(0.50)
     }
     perform GetV<R>()
 }
 
-public func executeRandomly(n : Int64) : Unit {
-    // a list of callables
-    // to turn a function of A -> B into a callable,
-    // supply all primitive types A with a generator `GenRandom<A>`
-    // supply all function types X -> Y with `replacement<X, Y>`
-    // at the end of the function, ignore the return type.
-    /* For example:
-    f : (X -> Y) -> A -> B
-    turns into
-    f' () = {
-        f(replacement<X, Y>, perform GenRandom<A>)
-        return ()
-    }
-    */
-    for (i in 0..n) {
-        execute()
+public func executeRandomly(iters : Int64) : Unit {
+    for (i in 0..iters) {
+        execute(0.50)
     }
 }
 
