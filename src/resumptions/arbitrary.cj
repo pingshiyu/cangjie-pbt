@@ -3,7 +3,7 @@ package cangjie_experiments.resumptions
 import cangjie_experiments.pbt.*
 import std.collection.*
 
-public class Arbitrary {
+public class ArbitraryGen {
     public func sHandle<Y>(fn: () -> Y): Y {
         try {
             fn()

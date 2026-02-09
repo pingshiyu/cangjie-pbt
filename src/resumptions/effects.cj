@@ -1,6 +1,7 @@
 package cangjie_experiments.resumptions
 
 import stdx.effect.*
+import std.random.*
 
 // ================ Unit public type resumptions ================
 /*
@@ -52,6 +53,8 @@ public class SetFuel <: Command<Unit> {
 }
 public class ConsumeFuel <: Command<Unit> {}
 public class HasFuel <: Command<Bool> {}
+
+public class GetRandom <: Command<Random> {}
 
 // ================ Template public type resumptions ================
 

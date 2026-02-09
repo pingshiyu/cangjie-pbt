@@ -91,7 +91,7 @@ class Stash_ {
     let boolLintRes : ResStash<Bool, List<Int64>> = ResStash<Bool, List<Int64>>()
     let boolBoolRes : ResStash<Bool, Bool> = ResStash<Bool, Bool>()
 
-    let arb : Arbitrary = Arbitrary()
+    let arb = ArbitraryGen()
 
     func handleStash<Y>(fn: () -> Y): Y {
         // generators for primitive types
