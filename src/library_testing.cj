@@ -1,7 +1,7 @@
 package cangjie_experiments
 
 import cangjie_experiments.define.*
-import stdx.effect.*
+import effects.*
 import std.collection.*
 import std.random.*
 import std.unittest.prop_test.*
@@ -15,9 +15,9 @@ import cangjie_experiments.utils.*
 // example functions
 func effectfulFunction(label: String): UnitFn {{ =>
     println("${label}: entry")
-    perform Switch() // call ext function
+    perform(Switch()) // call ext function
     println("${label}: called Switch 1")
-    perform Switch() // call ext function
+    perform(Switch()) // call ext function
     println("${label}: called Switch 2")
 }}
 
@@ -30,39 +30,38 @@ func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f0: Int64, f : () -> 
     let ress = ArrayList<Res>()
     
     runExtRand(r) { arb.sHandle { handleStateV(()) { handleFuel(f0) {   
-        try {
+        try_ {
             f()
-        } handle(e: HasRes) {
-            resume with (ress.size > 0)
-        } handle(e: GetRandomRes) {
+        } .handle { e: HasRes =>
+            (ress.size > 0)
+        } .handle { e: GetRandomRes =>
             let chosenRIx = randIntRange(0, ress.size)
-            resume with ress.remove(at:chosenRIx)
-        } handle(e: AddRes) {
+            ress.remove(at:chosenRIx)
+        } .handle { e: AddRes =>
             ress.add(e.r)
-            resume with ()
-        } handle(e: GetRandomUnitFn) {
+        } .handle { e: GetRandomUnitFn =>
             let chosenRIx = randIntRange(0, lib.size)
-            perform ConsumeFuel()
-            resume with lib[chosenRIx]
-        } handle(e: RunFunction) {
-            if (perform HasFuel()) {
-                perform ConsumeFuel()
-                resume with randBool(e.p)
+            perform(ConsumeFuel())
+            lib[chosenRIx]
+        } .handle { e: RunFunction =>
+            if (perform(HasFuel())) {
+                perform(ConsumeFuel())
+                randBool(e.p)
             } else {
-                resume with false
+                false
             }
-        } handle(e: GetRandom) {
-            resume with r
-        }
+        } .handle { e: GetRandom =>
+            r
+        } .then_finally {}
     }}}}
 }
 
 func randObject<T>() : T {
-    perform GenRandom<T>()
+    perform(GenRandom<T>())
 }
 
 func cjRandom<T>() : T where T <: Arbitrary<T> {
-    return T.arbitrary(perform GetRandom()).next()
+    return T.arbitrary(perform(GetRandom())).next()
 }
 
 class ExampleClass {
@@ -143,11 +142,11 @@ main() {
     // calls to the unknown functions `f` are controlled.
     println("comparing two runs of functions:")
     let seed : Option<UInt64> = Some(Random().nextUInt64()) // None // Some(55)
-    runInContext(seed, lib, 20) {
+    runInContext(seed, lib, 50) {
         executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], map_))
     }
     println("================================================")
-    runInContext(seed, lib, 20) {
+    runInContext(seed, lib, 50) {
         executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], filter_))
     }
     return 0

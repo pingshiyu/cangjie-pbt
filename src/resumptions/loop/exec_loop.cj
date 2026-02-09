@@ -1,69 +1,65 @@
 package cangjie_experiments.resumptions.loop
 
-import stdx.effect.*
+import effects.*
 import std.collection.*
 import std.random.*
 import cangjie_experiments.pbt.*
 import cangjie_experiments.resumptions.*
 
 public func withMarkers<R>(f : () -> R): Unit {
-    perform SetDone(false)
+    perform(SetDone(false))
     let retVal = f()
-    perform SetDone(true)
-    perform StoreV<R>(retVal)
+    perform(SetDone(true))
+    perform(StoreV<R>(retVal))
 }
 
 public func handleStateV<R>(r0 : R, f : () -> R): R {
     let s : Box<R> = Box(r0)
     let done : Box<Bool> = Box(false)
-    try {
+    try_ {
         f()
-    } handle(e: GetV<R>) {
-        resume with s.value
-    } handle(e: StoreV<R>) {
+    } .handle { e: GetV<R> =>
+        s.value
+    } .handle { e: StoreV<R> =>
         s.value = e.s
-        resume with ()
-    } handle(e: SetDone) {
+    } .handle { e: SetDone =>
         done.value = e.s
-        resume with ()
-    } handle(e: IsDone) {
-        resume with done.value
-    }
+    } .handle { e: IsDone =>
+        done.value
+    } .then_finally {}
 }
 
 public func handleFuel<R>(f0 : Int64, f : () -> R): R {
     let fuel = Box<Int64>(f0)
-    try {
+    try_ {
         f()
-    } handle(e: SetFuel) {
+    } .handle { e: SetFuel =>
         fuel.value = e.f
-        resume with ()
-    } handle(e: HasFuel) {
-        resume with fuel.value > 0
-    } handle(e: ConsumeFuel) {
+    } .handle { e: HasFuel =>
+        fuel.value > 0
+    } .handle { e: ConsumeFuel =>
         fuel.value -= 1
-        resume with ()
-    } handle(e: RunFunction) {
+    } .handle { e: RunFunction =>
         if (fuel.value > 0) {
-            resume with randBool(e.p)
+            randBool(e.p)
         } else {
-            resume with false
+            false
         }
-    }
+    } .then_finally {}
 }
 
 func execute(p : Float64): Unit {
     handleSwitch {
-        let runFunction = perform RunFunction(p)
-        let hasResumptions = perform HasRes()
+        let runFunction = perform(RunFunction(p))
+        let hasResumptions = perform(HasRes())
         if (runFunction) {
             // println("starting a new function")
-            let chosenF = perform GetRandomUnitFn()
+            let chosenF = perform(GetRandomUnitFn())
             chosenF()
         } else if (hasResumptions) {
             // println("resuming a resumption")
-            let chosenR = perform GetRandomRes()
-            resume chosenR with ()
+        let chosenR = perform(GetRandomRes())
+        resume(chosenR, ())
         } else {
             println("WARNING: no resumptions, didn't choose to run a function. skipping")
         }
@@ -77,10 +73,10 @@ Larger `n` means longer execution time.
 */
 public func executeUntilDone<R>(f : () -> R) : R {
     handleSwitch { withMarkers { f() } }
-    while (!(perform IsDone())) {
+    while (!(perform(IsDone()))) {
         execute(0.50)
     }
-    perform GetV<R>()
+    perform(GetV<R>())
 }
 
 public func executeRandomly(iters : Int64) : Unit {
@@ -121,16 +117,16 @@ public func differntialTest<R>(seed: Int64, f: () -> R, g: () -> R): Bool where 
 
 // in place of any f : A -> B, we can use this as randFunc()
 public func randFunc<A, B>(): (A) -> B {{ a => 
-    perform Switch()
-    return perform GenRandom<B>()
+    perform(Switch())
+    return perform(GenRandom<B>())
 }}
 
 public func handleSwitch(f : UnitFn) : Unit {
-    try {
+    try_deferrable {
         f()
-    } handle (e : Switch, r : Res) {
-        perform AddRes(r)
-    }
+    } .handle { e : Switch, r : Res =>
+        perform(AddRes(r))
+    } .then_finally {}
 }
 
 public func ignoreOutput<B>(f : () -> B): () -> Unit {{ =>

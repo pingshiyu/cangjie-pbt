@@ -1,6 +1,6 @@
 package cangjie_experiments.resumptions
 
-import stdx.effect.*
+import effects.*
 import std.random.*
 
 // ================ Unit public type resumptions ================
@@ -73,7 +73,7 @@ public class GenRandom<B> <: Command<B> {
 }
 
 public func fake<A, B>(a : A): B {
-    return perform UnknownFunction<A, B>(a)
+    return perform(UnknownFunction<A, B>(a))
 }
 
 public class GetRandomFn<A, B> <: Command<(A) -> B> {

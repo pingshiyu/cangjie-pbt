@@ -6,7 +6,7 @@
   target-dir = ""
   src-dir = ""
   output-type = "executable"
-  compile-option = "--experimental --enable-eh -Woff unused" 
+  compile-option = "-Woff unused" 
   override-compile-option = ""
   link-option = ""
 
@@ -16,3 +16,5 @@
   [target.aarch64-apple-darwin.bin-dependencies]
     path-option = ["/Users/jacob/projects/resumptions-dev/software/darwin_aarch64_cjnative/dynamic/stdx"]
 
+[dependencies]
+  effects = { git = "https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax.git", branch = "deferred-resumption" }

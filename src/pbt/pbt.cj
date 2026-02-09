@@ -1,6 +1,6 @@
 package cangjie_experiments.pbt
 
-import stdx.effect.*
+import effects.*
 import std.collection.*
 import std.random.*
 import cangjie_experiments.utils.*
@@ -16,7 +16,7 @@ class Rand <: Command<RUnit> {}
 
 // randomness effect, allows for injection of randomness externally
 public func rand() : RUnit {
-    perform Rand()
+    perform(Rand())
 }
 
 // indicate we ran out of randomness:
@@ -28,9 +28,9 @@ class OutOfRand <: Command<Unit> {
 }
 
 public func handleOutOfRandAsError<R>(fn: () -> R) : R {
-    try { fn() } handle(_ : OutOfRand) {
+    try_ { fn() } .handle { _ : OutOfRand =>
         throw WrongArgumentException("Out of random bits!")
-    }
+    } .then_finally {}
 }
 
 // unions of all the generateable pure values
@@ -75,26 +75,26 @@ class ExitScope <: Command<Unit> {
 } 
 
 public func withScope<R>(fnName : String, fn : () -> R) : R {
-    perform EnterScope(fnName)
+    perform(EnterScope(fnName))
     let rv = fn()
     let storeVal : Option<Value> = createValue(rv)
-    perform ExitScope(storeVal)
+    perform(ExitScope(storeVal))
     return rv
 }
 
 // basic interpreter of randomness. 
 // consumes a little bit of the random list
 public func interpRand<R>(rl : List<RUnit>, fn : () -> R) : R {
-    try {
+    try_ {
         fn ()
-    } handle(_ : Rand) {
+    } .handle { _ : Rand =>
         // println("interpRand: rl=" + showList(", ", rl))
         if (rl.isEmpty()) {
-            perform OutOfRand() // throw Exception("out of randomness!")
+            perform(OutOfRand()) // throw Exception("out of randomness!")
         }
         let x = pop(rl)
-        resume with x
-    }
+        x
+    } .then_finally {}
 }
 
 // FUTURE: create type CompleteRandTree 
@@ -221,56 +221,52 @@ public func randTreeDeepCopy(rt : RandTree, p: ?RandTree) : RandTree {
 }
 
 public func interpRandTree<R>(rl : List<RUnit>, rt : Box<RandTree>, fn : () -> R) : R {
-    try {
+    try_ {
         fn()
-    } handle(_ : Rand) {
+    } .handle { _ : Rand =>
         if (rl.isEmpty()) {
-            perform OutOfRand() // throw Exception("out of randomness!")
+            perform(OutOfRand()) // throw Exception("out of randomness!")
         }
         let r = pop(rl)
         rt.value.addR(r)
-        resume with r
-    }
+        r
+    } .then_finally {}
 }
 
 public func interpExtRandTree<R>(rs: Random, rt: Box<RandTree>, fn: () -> R) : R {
-    try {
+    try_ {
         fn()
-    } handle(_ : Rand) {
+    } .handle { _ : Rand =>
         let i = rs.nextInt8()
         rt.value.addR(i)
-        resume with i
-    }
+        i
+    } .then_finally {}
 }
 
 public func interpExtRand<R>(rs: Random, fn : () -> R) : R {
-    try {
+    try_ {
         fn()
-    } handle(_ : Rand) {
-        resume with rs.nextInt8()
-    }
+    } .handle { _ : Rand =>
+        rs.nextInt8()
+    } .then_finally {}
 }
 
 public func interpScope<R>(rt : Box<RandTree>, fn : () -> R) : R {
-    try {
+    try_ {
         fn ()
-    } handle(e : EnterScope) {
+    } .handle { e : EnterScope =>
         rt.value = rt.value.newScope(Some(e.label))
-        resume
-    } handle(e : ExitScope) {
+    } .handle { e : ExitScope =>
         rt.value = rt.value.closeScope(e.gv)
-        resume
-    }
+    } .then_finally {}
 }
 
 public func ignoreScope<R>(fn : () -> R) : R {
-    try {
+    try_ {
         fn()
-    } handle(_ : EnterScope) {
-        resume
-    } handle(_ : ExitScope) {
-        resume
-    }
+    } .handle { _ : EnterScope =>
+    } .handle { _ : ExitScope =>
+    } .then_finally {}
 }
 
 public func runRand<R>(rl : List<RUnit>, fn : () -> R) : R {

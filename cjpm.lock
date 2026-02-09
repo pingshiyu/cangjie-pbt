@@ -1,3 +1,4 @@
 version = 0
 
 [requires]
+  effects = {git = "https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax.git", commitId = "6b61591c2f96f7286b548f23a4185f0dc27fb4ed", branch = "deferred-resumption"}

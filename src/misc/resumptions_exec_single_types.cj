@@ -1,6 +1,6 @@
 package cangjie_experiments.misc
 
-import stdx.effect.*
+import effects.*
 import std.collection.*
 import std.random.*
 import cangjie_experiments.resumptions.*
@@ -8,11 +8,11 @@ import cangjie_experiments.pbt.*
 import cangjie_experiments.resumptions.original.*
 
 func runBackpocket<R>(fn: () -> R) {
-    try {
+    try_ {
         fn()
-    } handle(_ : GenRandom<Int64>) {
-        resume with randSmallInt64()
-    }
+    } .handle { _ : GenRandom<Int64> =>
+        randSmallInt64()
+    } .then_finally {}
 }
 
 /* v1: runs functions of type Unit -> Unit
@@ -21,9 +21,9 @@ Issues:
 functions.
 */
 func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, fn : () -> Unit): Unit {
-    try {
+    try_deferrable {
         fn()
-    } handle(_ : UnknownFunction<Unit, Unit>, r : Resumption<Unit, Unit>) {
+    } .handle { _ : UnknownFunction<Unit, Unit>, r : Resumption<Unit, Unit> =>
         // either resume an existing resumption, or start a function in the list
         rs.add(r)
 
@@ -39,10 +39,10 @@ func handleUnknownUnit(fns: List<() -> Unit>, rs: List<Resumption<Unit, Unit>>, 
             let chosenRIx = randIntRange(0, rs.size)
             let chosenR = rs.remove(at:chosenRIx)
             handleUnknownUnit(fns, rs) {
-                resume chosenR
+                resume(chosenR, ())
             }
         }
-    }
+    } .then_finally {}
 }
 
 func executeUnitUnit(fns: List<() -> Unit>) {
@@ -61,9 +61,9 @@ Issues:
 - interpretation of effects is cumbersome: need to keep passing parameters in to the interpretation function
 */
 func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>, fn: (A) -> A): (A) -> A {{ a =>
-    try {
+    try_deferrable {
         fn(a)
-    } handle(f: UnknownFunction<A, A>, r: Resumption<A, A>) {
+    } .handle { f: UnknownFunction<A, A>, r: Resumption<A, A> =>
         rs.add(r)
 
         let path = randBool(0.50)
@@ -74,10 +74,10 @@ func handleUnknownSingleType<A>(fns: List<(A) -> A>, rs: List<Resumption<A, A>>,
         } else {
             let chosenRIx = randIntRange(0, rs.size)
             let chosenR = rs.remove(at:chosenRIx)
-            let a0 = perform GenRandom<A>()
-            handleUnknownSingleType<A>(fns, rs, { x: A => resume chosenR with x })(a0)
+            let a0 = perform(GenRandom<A>())
+            handleUnknownSingleType<A>(fns, rs, { x: A => resume(chosenR, x) })(a0)
         }
-    }
+    } .then_finally {}
 }}
 
 func executeIntInt(fns: List<(Int64) -> Int64>): Int64 {
@@ -115,24 +115,24 @@ Issues:
 - Still only executes inner library functions of type A -> A
 */
 func handleUnknownSimplified<X, A, Y>(fn: (X) -> Y) : (X) -> Y {{ a =>
-    try {
+    try_deferrable {
         fn(a)
-    } handle(f: UnknownFunction<A, A>, r: Resumption<A, Y>) {
-        perform AddResumption<A, Y>(r)
-        let hasFns = perform HasFn<A, A>()
+    } .handle { f: UnknownFunction<A, A>, r: Resumption<A, Y> =>
+        perform(AddResumption<A, Y>(r))
+        let hasFns = perform(HasFn<A, A>())
 
         let path = randBool(0.50)
         if (path && hasFns) {
-            let chosenF = perform GetRandomFn<A, A>()
-            let chosenR = perform GetRandomResumption<A, Y>()
+            let chosenF = perform(GetRandomFn<A, A>())
+            let chosenR = perform(GetRandomResumption<A, Y>())
             let fOut = handleUnknownSimplified<A, A, A>(chosenF)(f.arg)
-            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(fOut)
+            handleUnknownSimplified<A, A, Y>({ x: A => resume(chosenR, x) })(fOut)
         } else {
-            let chosenR = perform GetRandomResumption<A, Y>()
-            let a0 = perform GenRandom<A>()
-            handleUnknownSimplified<A, A, Y>({ x: A => resume chosenR with x })(a0)
+            let chosenR = perform(GetRandomResumption<A, Y>())
+            let a0 = perform(GenRandom<A>())
+            handleUnknownSimplified<A, A, Y>({ x: A => resume(chosenR, x) })(a0)
         }
-    }
+    } .then_finally {}
 }}
 
 /* v4: generalised to arbitrary library calls of type A -> B
@@ -148,33 +148,33 @@ func handleUnknownABType<X, A, B, Y>(fn: (X) -> Y): (X) -> Y {{ x =>
     - {Has, GetRandom}Fn<A, B>
     - GenRandom<B>
     */
-    try {
+    try_deferrable {
         fn(x)
-    } handle(f: UnknownFunction<A, B>, r: Resumption<B, Y>) {
+    } .handle { f: UnknownFunction<A, B>, r: Resumption<B, Y> =>
         // stash the current resumption
-        perform AddResumption<B, Y>(r) // <B, Y>
-        let hasFns = perform HasFn<A, B>()
-        let hasPreRs = perform HasResumption<A, Y>()
-        // POST: !(perform GetResumptions<B, Y>()).isEmpty()
+        perform(AddResumption<B, Y>(r)) // <B, Y>
+        let hasFns = perform(HasFn<A, B>())
+        let hasPreRs = perform(HasResumption<A, Y>())
+        // POST: !(perform(GetResumptions<B, Y>())).isEmpty()
 
         let path = randBool(0.20)
         if (path && hasFns) {
             // start a new function, then use post_rs
-            let chosenF = perform GetRandomFn<A, B>()
-            let chosenR = perform GetRandomResumption<B, Y>()
+            let chosenF = perform(GetRandomFn<A, B>())
+            let chosenR = perform(GetRandomResumption<B, Y>())
             let fOut = handleUnknownABType<A, A, B, B>(chosenF)(f.arg)
-            handleUnknownABType<B, A, B, Y>({ b : B => resume chosenR with b })(fOut)
+            handleUnknownABType<B, A, B, Y>({ b : B => resume(chosenR, b) })(fOut)
         } else if (hasPreRs) {
             // resume directly from the function inputs
-            let chosenR = perform GetRandomResumption<A, Y>()
-            handleUnknownABType<A, A, B, Y>({ a : A => resume chosenR with a })(f.arg)
+            let chosenR = perform(GetRandomResumption<A, Y>())
+            handleUnknownABType<A, A, B, Y>({ a : A => resume(chosenR, a) })(f.arg)
         } else {
             // backup: resume by generating a fresh random argument to r
-            let b0 = perform GenRandom<B>()
-            let chosenR = perform GetRandomResumption<B, Y>()
-            handleUnknownABType<B, A, B, Y>({ b : B => resume chosenR with b })(b0)
+            let b0 = perform(GenRandom<B>())
+            let chosenR = perform(GetRandomResumption<B, Y>())
+            handleUnknownABType<B, A, B, Y>({ b : B => resume(chosenR, b) })(b0)
         }
-    }
+    } .then_finally {}
 }}
 
 class Stash {
@@ -196,69 +196,55 @@ class Stash {
 /* This provides all of the implementation for the immediate effects used.
 */
 func handleStash_old<Y>(s: Stash, fn: () -> Y): Y {
-    try {
+    try_ {
         fn()
-    } handle(e: AddResumption<Int64, Int64>) {
+    } .handle { e: AddResumption<Int64, Int64> =>
         s.intIntRes.add(e.r)
-        resume with ()
-    } handle(e: AddResumption<Unit, Unit>) {
+    } .handle { e: AddResumption<Unit, Unit> =>
         s.unitUnitRes.add(e.r)
-        resume with ()
-    } handle(e: AddResumption<Int64, List<Int64>>) {
+    } .handle { e: AddResumption<Int64, List<Int64>> =>
         s.intlintRes.add(e.r)
-        resume with ()
-    } handle(e: AddResumption<Bool, Int64>) {
+    } .handle { e: AddResumption<Bool, Int64> =>
         s.boolIntRes.add(e.r)
-        resume with ()
-    } handle(e: AddResumption<Bool, List<Int64>>) {
+    } .handle { e: AddResumption<Bool, List<Int64>> =>
         s.boolLintRes.add(e.r)
-        resume with ()
-    } handle(e: AddResumption<Bool, Bool>) {
+    } .handle { e: AddResumption<Bool, Bool> =>
         s.boolBoolRes.add(e.r)
-        resume with ()
-    } handle(_: GetRandomResumption<Int64, Int64>) {
+    } .handle { _: GetRandomResumption<Int64, Int64> =>
         let chosenRIx = randIntRange(0, s.intIntRes.size)
-        let chosenR = s.intIntRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(_: GetRandomResumption<Unit, Unit>) {
+        s.intIntRes.remove(at:chosenRIx)
+    } .handle { _: GetRandomResumption<Unit, Unit> =>
         let chosenRIx = randIntRange(0, s.unitUnitRes.size)
-        let chosenR = s.unitUnitRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(_: GetRandomResumption<Int64, List<Int64>>) {
+        s.unitUnitRes.remove(at:chosenRIx)
+    } .handle { _: GetRandomResumption<Int64, List<Int64>> =>
         let chosenRIx = randIntRange(0, s.intlintRes.size)
-        let chosenR = s.intlintRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(_: GetRandomResumption<Bool, Int64>) {
+        s.intlintRes.remove(at:chosenRIx)
+    } .handle { _: GetRandomResumption<Bool, Int64> =>
         let chosenRIx = randIntRange(0, s.boolIntRes.size)
-        let chosenR = s.boolIntRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(_: GetRandomResumption<Bool, List<Int64>>) {
+        s.boolIntRes.remove(at:chosenRIx)
+    } .handle { _: GetRandomResumption<Bool, List<Int64>> =>
         let chosenRIx = randIntRange(0, s.boolLintRes.size)
-        let chosenR = s.boolLintRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(_: GetRandomResumption<Bool, Bool>) {
+        s.boolLintRes.remove(at:chosenRIx)
+    } .handle { _: GetRandomResumption<Bool, Bool> =>
         let chosenRIx = randIntRange(0, s.boolBoolRes.size)
-        let chosenR = s.boolBoolRes.remove(at:chosenRIx)
-        resume with chosenR
-    } handle(_: HasResumption<Unit, Unit>) {
-        resume with s.unitUnitRes.isEmpty()
-    } handle(_: HasResumption<Int64, Int64>) {
-        resume with s.intIntRes.isEmpty()
-    } handle(_: HasResumption<Int64, List<Int64>>) {
-        resume with s.intlintRes.isEmpty()
-    } handle(_: GetRandomFn<Int64, Int64>) {
+        s.boolBoolRes.remove(at:chosenRIx)
+    } .handle { _: HasResumption<Unit, Unit> =>
+        s.unitUnitRes.isEmpty()
+    } .handle { _: HasResumption<Int64, Int64> =>
+        s.intIntRes.isEmpty()
+    } .handle { _: HasResumption<Int64, List<Int64>> =>
+        s.intlintRes.isEmpty()
+    } .handle { _: GetRandomFn<Int64, Int64> =>
         let chosenFIx = randIntRange(0, s.intIntFns.size)
-        let chosenF = s.intIntFns.remove(at:chosenFIx)
-        resume with chosenF
-    } handle(_: GetRandomFn<Unit, Unit>) {
+        s.intIntFns.remove(at:chosenFIx)
+    } .handle { _: GetRandomFn<Unit, Unit> =>
         let chosenFIx = randIntRange(0, s.unitUnitFns.size)
-        let chosenF = s.unitUnitFns.remove(at:chosenFIx)
-        resume with chosenF
-    } handle(_: HasFn<Int64, Int64>) {
-        resume with !s.intIntFns.isEmpty()
-    } handle(_: HasFn<Unit, Unit>) {
-        resume with !s.unitUnitFns.isEmpty()
-    }
+        s.unitUnitFns.remove(at:chosenFIx)
+    } .handle { _: HasFn<Int64, Int64> =>
+        !s.intIntFns.isEmpty()
+    } .handle { _: HasFn<Unit, Unit> =>
+        !s.unitUnitFns.isEmpty()
+    } .then_finally {}
 }
 
 func main_old() {

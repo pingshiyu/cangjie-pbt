@@ -38,7 +38,7 @@ func genStashes(tys: List<TypeNode>): Tokens {
 
     result += quote(func handleStash<Y>(fn: () -> Y): Y {
         arb.sHandle { 
-            try {
+            try_ {
                 fn()
             })
     for (i1 in 0..tys.size) {
@@ -48,16 +48,16 @@ func genStashes(tys: List<TypeNode>): Tokens {
             let t1 = tys[i1]
             let t2 = tys[i2]
             result += quote(
-              handle(_: GetRandomFn<$(t1), $(t2)>) {
-                resume with $(fns_vn).randomFunction()
-            } handle(_: HasFn<$(t1), $(t2)>) {
-                resume with $(fns_vn).hasFunction()
-            } handle(_: GetRandomResumption<$(t1), $(t2)>) {
-                resume with $(res_vn).randomResumption()
-            } handle(_: HasResumption<$(t1), $(t2)>) {
-                resume with $(res_vn).hasResumption()
-            } handle(e: AddResumption<$(t1), $(t2)>) {
-                resume with $(res_vn).addResumption(e.r)
+              .handle { _: GetRandomFn<$(t1), $(t2)> =>
+                $(fns_vn).randomFunction()
+            } .handle { _: HasFn<$(t1), $(t2)> =>
+                $(fns_vn).hasFunction()
+            } .handle { _: GetRandomResumption<$(t1), $(t2)> =>
+                $(res_vn).randomResumption()
+            } .handle { _: HasResumption<$(t1), $(t2)> =>
+                $(res_vn).hasResumption()
+            } .handle { e: AddResumption<$(t1), $(t2)> =>
+                $(res_vn).addResumption(e.r)
             })
         }
     }
@@ -82,6 +82,7 @@ func genStashes(tys: List<TypeNode>): Tokens {
     }
     */
 
+    result += quote(.then_finally {}) // closes the handler chain
     result += quote(}) // closes arb.sHandle {
     result += quote(}}) // closes func.handleStash<..>(..) {; class StashG_ {
 
@@ -100,7 +101,7 @@ func handleUnknown<Y>(fn: () -> Y): Y {
 func genUnknownHandlers(tys: List<TypeNode>): Tokens {
     var res = quote(
         func handleUnknownG<Y>(fn: () -> Y) : Y {
-            try {
+            try_deferrable {
                 fn()
             }
     )
@@ -108,12 +109,13 @@ func genUnknownHandlers(tys: List<TypeNode>): Tokens {
     for (i1 in 0..tys.size) {
         for (i2 in 0..tys.size) {
             res += quote(
-                handle(f : UnknownFunction<$(tys[i1]), $(tys[i2])>, r : Resumption<$(tys[i2]), Y>) {
+                .handle { f : UnknownFunction<$(tys[i1]), $(tys[i2])>, r : Resumption<$(tys[i2]), Y> =>
                     handleUnknownG<Y> { fillFunction<$(tys[i1]), $(tys[i2]), Y>(f, r) }
                 })
         }
     }
 
+    res += quote(.then_finally {}) // closes the handler chain
     res += quote(}) // func handleUnknown<Y>(...) : Y {
     return res
 }

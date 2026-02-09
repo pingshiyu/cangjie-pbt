@@ -1,6 +1,6 @@
 package cangjie_experiments.misc
 
-import stdx.effect.*
+import effects.*
 import std.collection.*
 import cangjie_experiments.utils.*
 import cangjie_experiments.pbt.*
@@ -34,8 +34,8 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
 
     public func defaultImpl(): Int64 {
         if (n <= 1) { return n }
-        let n1 : Int64 = perform Fib(n-1)
-        let n2 : Int64 = perform Fib(n-2)
+        let n1 : Int64 = perform(Fib(n-1))
+        let n2 : Int64 = perform(Fib(n-2))
         return n1 + n2
     }
 
@@ -54,52 +54,49 @@ class Fib <: Command<Int64> & Hashable & Equatable<Fib> & ToString {
 
 
 func main2(): Int64 {
-    try {
+    try_ {
         println(1)
-        let x = perform Eff()
+        let x = perform(Eff())
         println(x)
-    } handle (_ : Eff) {
+    } .handle { _ : Eff =>
         println(2) // return value is 3. resume = rest of code after effect is called.
-        resume with 3
-    }
+        3
+    } .then_finally {}
     // expected 1 \n 2 \n 3
 
     printSep()
 
-    try {
-        try { 
-            perform One()
-            perform Two()
-        } handle (_: One) {
+    try_ {
+        try_ { 
+            perform(One())
+            perform(Two())
+        } .handle { _: One =>
             println("handled One into this, inner")
-            resume
-        } handle (_: Two) {
+        } .handle { _: Two =>
             println("handling Two now, inner")
-            resume
-        }
-        perform One()
-    } handle (_: One) {
+        } .then_finally {}
+        perform(One())
+    } .handle { _: One =>
         println("and now this is the outer handler.")
-        resume
-    }
+    } .then_finally {}
     // expected "handled One..." \n "handling Two now..." \n "and now this is the..."
 
     printSep()
 
-    try {
+    try_ {
         println("normal execution")
-        perform Erroring("big mistake")
+        perform(Erroring("big mistake"))
         println("well let's get back to work anyways")
-    } handle (_: Erroring) {
+    } .handle { _: Erroring =>
         println("recovered woop woop")
         // don't resume
-    }
+    } .then_finally {}
     // expected: "well let's get back to work anyways" is NOT printed.
     
     printSep()
 
     println("not gonna handle the one below me")
-    perform HasDefault()
+    perform(HasDefault())
     // expected "not gonna..." \n "ran default impl..."
 
     printSep()
@@ -107,24 +104,22 @@ func main2(): Int64 {
     func functionThatUseEffects() {
         println("spongebob")
         println("patrick")
-        perform ThirdCharacter("squidward")
+        perform(ThirdCharacter("squidward"))
         println("having fun under the sea")
     }
 
-    try {
+    try_ {
         functionThatUseEffects()
-    } handle(e : ThirdCharacter) {
+    } .handle { e : ThirdCharacter =>
         println(e.name.toAsciiUpper())
-        resume
-    }
+    } .then_finally {}
     // expected: spongebob \n patrick \n SQUIDWARD \n having fun...
 
-    try {
+    try_ {
         functionThatUseEffects()
-    } handle(e : ThirdCharacter) {
+    } .handle { e : ThirdCharacter =>
         println(e.name.replace("squid", "shark"))
-        resume
-    }
+    } .then_finally {}
     // expected: spongebob \n patrick \n sharkward \n having fun...
 
     printSep()
@@ -146,26 +141,26 @@ func main2(): Int64 {
 
     func conc1(): Unit {
         println("t1: atomic op1")
-        perform Yield({ =>
+        perform(Yield({ =>
             println("t1: atomic op2")
-            perform Yield({=>})
-        })
+            perform(Yield({=>}))
+        }))
     }
 
     func conc2(): Unit {
         println("t2: atomic op1")
-        perform Yield({ =>
+        perform(Yield({ =>
             println("t2: atomic op2")
-            perform Yield({=>})
-        })
+            perform(Yield({=>}))
+        }))
     }
 
     func interleave(t1: () -> Unit, t2: () -> Unit): Unit {
-        try {
+        try_ {
             t1()
-        } handle(y: Yield) {
+        } .handle { y: Yield =>
             interleave(t2, y.res)
-        }
+        } .then_finally {}
     }
 
     interleave(conc1, conc2)
@@ -175,36 +170,35 @@ func main2(): Int64 {
 
     // stateful handler that counts the number of occurences inside fn?
     func severalEffs(): Unit {
-        perform One()
-        perform One()
+        perform(One())
+        perform(One())
         println("hehe")
-        perform One()
+        perform(One())
     }
 
     // R ! Effs -> R ! Effs
     func countEffs<Cmd, Res, R>(_: Res, rInit: R, fn: () -> R): R where Cmd <: Command<Res> {
         let count : Box<Int> = Box(0)
         let rv : Box<R> = Box(rInit);
-        try {
+        try_ {
             rv.value = fn()
             println("counted ${count.value} of One effects.")
-        } handle (e: Cmd) {
+        } .handle { e: Cmd =>
             count.value = count.value + 1
             // reperform the effect
-            let o = perform e
+            let o = perform(e)
             // let o2: Res = countEffs<Cmd, Res, Res>(def, { => e.defaultImpl() })
-            resume with o
-        }
+            o
+        } .then_finally {}
         return rv.value
     }
 
     // R ! (One : Effs) -> R ! Effs
     func interpOne<R>(fn: () -> R) {
-        try {
+        try_ {
             fn()
-        } handle (_ : One) {
-            resume 
-        }
+        } .handle { _ : One =>
+        } .then_finally {}
     }
 
     interpOne { 
@@ -218,10 +212,10 @@ func main2(): Int64 {
     func memoise<Cmd, Res, R>(m: HashMap<Cmd, Res>, fn : () -> R): R 
         where Cmd <: Command<Res> & Hashable & Equatable<Cmd> & ToString, 
               Res <: ToString {
-        try {
+        try_ {
             // every time Cmd is observed inside fn, handle it using handler below:
             fn()
-        } handle (e : Cmd) {
+        } .handle { e : Cmd =>
             // check on the map first to see if an entry exists
             let res : Res
             if (m.contains(e)) {
@@ -231,13 +225,13 @@ func main2(): Int64 {
                 res = memoise<Cmd, Res, Res>(m, { => e.defaultImpl() })
                 m.add(e, res)
             }
-            resume with res
-        }
+            res
+        } .then_finally {}
     }
 
     let cache = HashMap<Fib, Int64>()
     let n : Int64 = 60
-    let k : Int64 = memoise<Fib, Int64, Int64>(cache, { => perform Fib(n) })
+    let k : Int64 = memoise<Fib, Int64, Int64>(cache, { => perform(Fib(n)) })
     println("${n}th fibonacci number is ${k}")
     // expected: 60th fibonacci number is 1548008755920
 

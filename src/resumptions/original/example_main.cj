@@ -1,7 +1,7 @@
 package cangjie_experiments.resumptions.original
 
 import cangjie_experiments.define.*
-import stdx.effect.*
+import effects.*
 import std.collection.*
 import std.random.*
 import cangjie_experiments.resumptions.*

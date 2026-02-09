@@ -1,6 +1,6 @@
 package cangjie_experiments.pbt
 
-import stdx.effect.*
+import effects.*
 import std.collection.*
 import std.sort.*
 import cangjie_experiments.utils.*
@@ -14,17 +14,16 @@ class S <: Command<Unit> {}
 // S -> 1
 // S -> a
 func expandS(buf : List<String>, verbose: Bool, fn : () -> Unit): Unit {
-    try { fn() } handle (_ : S) {
+    try_ { fn() } .handle { _ : S =>
         let i_rule = randIntRange(0, 3)
         if (verbose) { println("rule ${i_rule}") }
         match (i_rule) {
-            case 0 => expandS(buf, verbose, {=> if (verbose) { println("expanding to S + S"); }; perform S(); perform S() })
+            case 0 => expandS(buf, verbose, {=> if (verbose) { println("expanding to S + S"); }; perform(S()); perform(S()) })
             case 1 => { => if (verbose) { println("expanding to 1"); }; buf.add("1") }()
             case 2 => { => if (verbose) { println("expanding to a"); }; buf.add("a") }()
             case _ => throw Exception("How did we get here?!?!")
         }
-        resume
-    }
+    } .then_finally {}
 }
 
 public func pbtMain() : Int64 {
@@ -68,7 +67,7 @@ public func pbtMain() : Int64 {
     let buf : List<String> = ArrayList<String>()
 
     runRand(randomness, {=> 
-        expandS(buf, true, { => perform S()})
+        expandS(buf, true, { => perform(S())})
     })
 
     print("final string generated: ")
@@ -89,7 +88,7 @@ public func pbtMain() : Int64 {
             Int8(11), Int8(-103), Int8(20), Int8(31), Int8(85), Int8(84), Int8(93), Int8(0)])
     let buf2 : List<String> = ArrayList<String>()
     runRandTracked(randomness2, rtb, {=> 
-        expandS(buf2, true, { => perform S()})
+        expandS(buf2, true, { => perform(S())})
     })
 
     println("Generated: " + showList("", buf2))
@@ -113,7 +112,7 @@ public func pbtMain() : Int64 {
     /* Reduction maintains the predicate: if the (randomly) produced string starts with a "1" */
     func startsWith1(): Bool {
         let bufu : List<String> = ArrayList<String>()
-        expandS(bufu, false, { => perform S()})
+        expandS(bufu, false, { => perform(S())})
         return bufu[0] == "1"
     }
 
@@ -126,7 +125,7 @@ public func pbtMain() : Int64 {
     println("Result of running with reduced RandTree:")
     let buf4 = ArrayList<String>()
     runRand(reduced.randList(), { =>
-        expandS(buf4, false, { => perform S() })
+        expandS(buf4, false, { => perform(S()) })
     })
     println(showList("", buf4))
 
@@ -140,7 +139,7 @@ public func pbtMain() : Int64 {
     let rt5 = RandTree(None, None)
     let rtb5 = Box<RandTree>(rt5)
     let buf5 = ArrayList<String>()
-    runRandTracked(rand5, rtb5, {=> expandS(buf5, false, { => perform S() })})
+    runRandTracked(rand5, rtb5, {=> expandS(buf5, false, { => perform(S()) })})
     println("Tree after reduction:")
     rt5.print()
 

@@ -1,7 +1,7 @@
 package cangjie_experiments.resumptions.original
 
 import std.collection.*
-import stdx.effect.*
+import effects.*
 import cangjie_experiments.pbt.*
 import cangjie_experiments.resumptions.*
 
@@ -29,15 +29,15 @@ class ResStash<X, Y> {
     }
 
     func sHandle<Z>(fn: () -> Z): Z {
-        try {
+        try_ {
             fn()
-        } handle(_: GetRandomResumption<X, Y>) {
-            resume with randomResumption()
-        } handle(_: HasResumption<X, Y>) {
-            resume with hasResumption()
-        } handle(e: AddResumption<X, Y>) {
-            resume with addResumption(e.r)
-        }
+        } .handle { _: GetRandomResumption<X, Y> =>
+            randomResumption()
+        } .handle { _: HasResumption<X, Y> =>
+            hasResumption()
+        } .handle { e: AddResumption<X, Y> =>
+            addResumption(e.r)
+        } .then_finally {}
     }
 }
 
@@ -63,13 +63,13 @@ class FnStash<A, B> {
     }
 
     func sHandle<Y>(fn: () -> Y): Y {
-        try {
+        try_ {
             fn()
-        } handle(_: GetRandomFn<A, B>) {
-            resume with randomFunction()
-        } handle(_: HasFn<A, B>) {
-            resume with hasFunction()
-        }
+        } .handle { _: GetRandomFn<A, B> =>
+            randomFunction()
+        } .handle { _: HasFn<A, B> =>
+            hasFunction()
+        } .then_finally {}
     }
 }
 
@@ -130,52 +130,52 @@ potentially also:
 */
 func fillFunction<A, B, Y>(f: UnknownFunction<A, B>, r: Resumption<B, Y>): Y {
     // stash the current resumption
-    perform AddResumption<B, Y>(r) // <B, Y>
+    perform(AddResumption<B, Y>(r)) // <B, Y>
     // idea: library fns might have Unknowns too, so those will trigger recursively
-    let hasFns = perform HasFn<A, B>()
-    let hasPreFs = perform HasFn<A, Y>()
-    let hasPreRs = perform HasResumption<A, Y>()
-    // POST: !(perform GetResumptions<B, Y>()).isEmpty()
+    let hasFns = perform(HasFn<A, B>())
+    let hasPreFs = perform(HasFn<A, Y>())
+    let hasPreRs = perform(HasResumption<A, Y>())
+    // POST: !(perform(GetResumptions<B, Y>())).isEmpty()
 
     let path = randBool(0.20)
     println("hasFns=${hasFns}, hasPreRs=${hasPreRs}, path=${path}")
     if (path && hasFns) {
         println("running a new f and resuming a resumption")
         // start a new function, then use post_rs
-        let chosenF = perform GetRandomFn<A, B>()
-        let chosenR = perform GetRandomResumption<B, Y>()
+        let chosenF = perform(GetRandomFn<A, B>())
+        let chosenR = perform(GetRandomResumption<B, Y>())
         let fOut = chosenF(f.arg)
-        resume chosenR with fOut
+        resume(chosenR, fOut)
     } else if (hasPreRs) {
         println("skipping handling with a resumption")
         // resume directly from the function inputs
-        let chosenR = perform GetRandomResumption<A, Y>()
-        resume chosenR with f.arg
+        let chosenR = perform(GetRandomResumption<A, Y>())
+        resume(chosenR, f.arg)
     } else if (hasPreFs) {
         println("skipping handling with a function")
-        let chosenF = perform GetRandomFn<A, Y>()
+        let chosenF = perform(GetRandomFn<A, Y>())
         chosenF(f.arg)
     } else {
         println("generating random output and resuming")
         // backup: resume by generating a fresh random argument to r
-        let b0 = perform GenRandom<B>()
-        let chosenR = perform GetRandomResumption<B, Y>()
-        resume chosenR with b0
+        let b0 = perform(GenRandom<B>())
+        let chosenR = perform(GetRandomResumption<B, Y>())
+        resume(chosenR, b0)
     }
 }
 
 public func handleUnknown<Y>(fn: () -> Y): Y {
-    try {
+    try_deferrable {
         fn()
-    } handle(f: UnknownFunction<Int64, Bool>, r: Resumption<Bool, Y>) {
+    } .handle { f: UnknownFunction<Int64, Bool>, r: Resumption<Bool, Y> =>
         handleUnknown<Y> { fillFunction<Int64, Bool, Y>(f, r) }
-    } handle(f: UnknownFunction<Int64, Int64>, r: Resumption<Int64, Y>) {
+    } .handle { f: UnknownFunction<Int64, Int64>, r: Resumption<Int64, Y> =>
         handleUnknown<Y> { fillFunction<Int64, Int64, Y>(f, r) }
-    } handle(f: UnknownFunction<List<Int64>, Bool>, r: Resumption<Bool, Y>) {
+    } .handle { f: UnknownFunction<List<Int64>, Bool>, r: Resumption<Bool, Y> =>
         handleUnknown<Y> { fillFunction<List<Int64>, Bool, Y>(f, r) }
-    } handle(f: UnknownFunction<List<Int64>, List<Int64>>, r: Resumption<List<Int64>, Y>) {
+    } .handle { f: UnknownFunction<List<Int64>, List<Int64>>, r: Resumption<List<Int64>, Y> =>
         handleUnknown<Y> { fillFunction<List<Int64>, List<Int64>, Y>(f, r) }
-    } handle(f: UnknownFunction<Int64, List<Int64>>, r: Resumption<List<Int64>, Y>) {
+    } .handle { f: UnknownFunction<Int64, List<Int64>>, r: Resumption<List<Int64>, Y> =>
         handleUnknown<Y> { fillFunction<Int64, List<Int64>, Y>(f, r) }
-    }
+    } .then_finally {}
 }

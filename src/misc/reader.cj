@@ -1,6 +1,6 @@
 package cangjie_experiments.misc
 
-import stdx.effect.*
+import effects.*
 
 // simulate reader-like effects using an external state
 
@@ -9,27 +9,27 @@ public class GetDepth <: Command<Int64> {
 }
 
 func deeper<T>(f : () -> T) : Unit {
-    try {
+    try_ {
         f()
-    } handle (e : GetDepth) {
-        resume with ((perform e) + 1) 
-    }
+    } .handle { e : GetDepth =>
+        ((perform(e)) + 1) 
+    } .then_finally {}
 }
 
 func testGetDepth() {
-    let d1 = perform GetDepth()
+    let d1 = perform(GetDepth())
     println("depth: ${d1}")
     deeper {
-        let d2 = perform GetDepth() 
+        let d2 = perform(GetDepth()) 
         println("depth: ${d2}")
         deeper {
-            let d3 = perform GetDepth() 
+            let d3 = perform(GetDepth()) 
             println("depth: ${d3}")
         }
-        let d4 = perform GetDepth() 
+        let d4 = perform(GetDepth()) 
         println("depth: ${d4}")
     }
-    let d5 = perform GetDepth() 
+    let d5 = perform(GetDepth()) 
     println("depth: ${d5}")
 }
 
