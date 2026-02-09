@@ -45,7 +45,6 @@ public func handleFuel<R>(f0 : Int64, f : () -> R): R {
         resume with ()
     } handle(e: RunFunction) {
         if (fuel.value > 0) {
-            fuel.value -= 1
             resume with randBool(e.p)
         } else {
             resume with false

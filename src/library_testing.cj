@@ -4,6 +4,8 @@ import cangjie_experiments.define.*
 import stdx.effect.*
 import std.collection.*
 import std.random.*
+import std.unittest.prop_test.*
+import std.unittest.common.*
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.resumptions.loop.*
 import cangjie_experiments.pbt.*
@@ -24,7 +26,7 @@ func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f0: Int64, f : () -> 
         case Some(s) => Random(s)
         case None => Random()
     }
-    let arb = Arbitrary()
+    let arb = ArbitraryGen()
     let ress = ArrayList<Res>()
     
     runExtRand(r) { arb.sHandle { handleStateV(()) { handleFuel(f0) {   
@@ -49,12 +51,18 @@ func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f0: Int64, f : () -> 
             } else {
                 resume with false
             }
+        } handle(e: GetRandom) {
+            resume with r
         }
     }}}}
 }
 
 func randObject<T>() : T {
     perform GenRandom<T>()
+}
+
+func cjRandom<T>() : T where T <: Arbitrary<T> {
+    return T.arbitrary(perform GetRandom()).next()
 }
 
 class ExampleClass {
@@ -85,37 +93,37 @@ func getContext() : ArrayList<UnitFn> {
 
     let lib = ArrayList([
         // these functions are higher order
-        // @RunRandomly([f in randFunc<Int64, Int64>, ls in randList(5, randInt64)], map_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], map_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], filter_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], all_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], none_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], any_),
-        @RunRandomly([f in randFunc<(Int8, Int8), Int8>, ls in randList(5, randInt8)], reduce_),
-        @RunRandomly([f in randFunc<Int8, ?Bool>, ls in randList(6, randInt8)], filterMap_),
-        @RunRandomly([f in randFunc<Bool, ArrayList<Bool>>, ls in randList(5, randBool_(0.50))], flatMap_),
-        @RunRandomly([f in randFunc<Bool, Unit>, ls in randList(5, randBool_(0.30))], forEach_),
-        @RunRandomly([f in randFunc<(Int64, Bool), Int64>, e in randInt64, ls in randList(10, randBool_(0.30))], fold_),
-        @RunRandomly([f in randFunc<Int64, Unit>, ls in randList(5, randInt64)], inspect_),
+        // @RunRandomly([f in randFunc<Int64, Int64>, ls in cjRandom<ArrayList<Int64>>], map_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], map_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], filter_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], all_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], none_),
+        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], any_),
+        @RunRandomly([f in randFunc<(Int8, Int8), Int8>, ls in cjRandom<ArrayList<Int8>>], reduce_),
+        @RunRandomly([f in randFunc<Int8, ?Bool>, ls in cjRandom<ArrayList<Int8>>], filterMap_),
+        @RunRandomly([f in randFunc<Bool, ArrayList<Bool>>, ls in cjRandom<ArrayList<Bool>>], flatMap_),
+        @RunRandomly([f in randFunc<Bool, Unit>, ls in cjRandom<ArrayList<Bool>>], forEach_),
+        @RunRandomly([f in randFunc<(Int64, Bool), Int64>, e in randInt64, ls in cjRandom<ArrayList<Bool>>], fold_),
+        @RunRandomly([f in randFunc<Int64, Unit>, ls in cjRandom<ArrayList<Int64>>], inspect_),
         
         // End operations from end_operation.cj
-        @RunRandomly([ls in randList(10, randInt64)], isEmpty),
-        @RunRandomly([ls in randList(10, randInt64)], count),
-        @RunRandomly([element in randInt64_(), ls in randList(10, randInt64)], contains_),
-        @RunRandomly([ls in randList(10, randInt64)], max),
-        @RunRandomly([ls in randList(10, randInt64)], min),
-        @RunRandomly([ls in randList(10, randInt64)], first),
-        @RunRandomly([ls in randList(10, randInt64)], last),
-        @RunRandomly([n in randIntRange_(0, 10), ls in randList(10, randInt64)], at_),
+        @RunRandomly([ls in cjRandom<ArrayList<Int64>>], isEmpty),
+        @RunRandomly([ls in cjRandom<ArrayList<Int64>>], count),
+        @RunRandomly([element in cjRandom<Int64>, ls in cjRandom<ArrayList<Int64>>], contains_),
+        @RunRandomly([ls in cjRandom<ArrayList<Int64>>], max),
+        @RunRandomly([ls in cjRandom<ArrayList<Int64>>], min),
+        @RunRandomly([ls in cjRandom<ArrayList<Int64>>], first),
+        @RunRandomly([ls in cjRandom<ArrayList<Int64>>], last),
+        @RunRandomly([n in cjRandom<Int64>, ls in cjRandom<ArrayList<Int64>>], at_),
         
         // Middle operations from middle_operation.cj
-        @RunRandomly([ls in randList(10, randInt64)], enumerate_),
-        @RunRandomly([ls in randNestedList(5, randInt64)], flatten_),
-        @RunRandomly([other in randList(8, randInt64), ls in randList(5, randInt64)], zip_),
-        @RunRandomly([other in randList(5, randInt64), ls in randList(5, randInt64)], concat_),
-        @RunRandomly([count in randIntRange_(0, 10), ls in randList(5, randInt64)], skip_),
-        @RunRandomly([count in randIntRange_(0, 10), ls in randList(5, randInt64)], take_),
-        @RunRandomly([count in randIntRange_(1, 5), ls in randList(5, randInt64)], step_),
+        @RunRandomly([ls in cjRandom<ArrayList<Int64>>], enumerate_),
+        @RunRandomly([ls in cjRandom<ArrayList<ArrayList<Int64>>>], flatten_),
+        @RunRandomly([other in cjRandom<ArrayList<Int64>>, ls in cjRandom<ArrayList<Int64>>], zip_),
+        @RunRandomly([other in cjRandom<ArrayList<Int64>>, ls in cjRandom<ArrayList<Int64>>], concat_),
+        @RunRandomly([count in randIntRange_(0, 10), ls in cjRandom<ArrayList<Int64>>], skip_),
+        @RunRandomly([count in randIntRange_(0, 10), ls in cjRandom<ArrayList<Int64>>], take_),
+        @RunRandomly([count in randIntRange_(1, 5), ls in cjRandom<ArrayList<Int64>>], step_),
         // @RunMembers(ExampleClass, randObject<ExampleClass>)
     ])
     let overallLib = lib
@@ -135,12 +143,12 @@ main() {
     // calls to the unknown functions `f` are controlled.
     println("comparing two runs of functions:")
     let seed : Option<UInt64> = Some(Random().nextUInt64()) // None // Some(55)
-    runInContext(seed, lib, 10) {
-        executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], map_))
+    runInContext(seed, lib, 20) {
+        executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], map_))
     }
     println("================================================")
-    runInContext(seed, lib, 10) {
-        executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in randList(5, randInt64)], filter_))
+    runInContext(seed, lib, 20) {
+        executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], filter_))
     }
     return 0
 }

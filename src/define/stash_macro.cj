@@ -22,7 +22,7 @@ func genStashes(tys: List<TypeNode>): Tokens {
     // form the Stash class
     var result = quote(
         class StashG_ {
-            let arb : Arbitrary = Arbitrary()
+            let arb = ArbitraryGen()
     )
 
     for (i1 in 0..tys.size) {
