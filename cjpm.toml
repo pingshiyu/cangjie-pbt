@@ -16,5 +16,9 @@
   [target.aarch64-apple-darwin.bin-dependencies]
     path-option = ["/Users/jacob/projects/resumptions-dev/software/darwin_aarch64_cjnative/dynamic/stdx"]
 
+[target.x86_64-unknown-linux-gnu]                                                     
+  [target.x86_64-unknown-linux-gnu.bin-dependencies]
+    path-option = ["/home/pings/projects/cangjie/software/linux_x86_64_cjnative/dynamic/stdx"]
+
 [dependencies]
   effects = { git = "https://github.com/Huawei-Edinburgh-Programming-Languages/effects-alt-syntax.git", branch = "deferred-resumption" }
