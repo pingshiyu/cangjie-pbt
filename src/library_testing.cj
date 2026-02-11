@@ -91,7 +91,7 @@ func getContext() : ArrayList<UnitFn> {
         @RunRandomly([x in randInt64], o2_ExampleClass.f2)
     ])
 
-    let lib = ArrayList([
+    let libCollectionsH = ArrayList([
         // these functions are higher order
         // @RunRandomly([f in randFunc<Int64, Int64>, ls in cjRandom<ArrayList<Int64>>], map_),
         @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], map_),
@@ -105,7 +105,8 @@ func getContext() : ArrayList<UnitFn> {
         @RunRandomly([f in randFunc<Bool, Unit>, ls in cjRandom<ArrayList<Bool>>], forEach_),
         @RunRandomly([f in randFunc<(Int64, Bool), Int64>, e in randInt64, ls in cjRandom<ArrayList<Bool>>], fold_),
         @RunRandomly([f in randFunc<Int64, Unit>, ls in cjRandom<ArrayList<Int64>>], inspect_),
-        
+    ])
+    let libCollections = ArrayList([
         // End operations from end_operation.cj
         @RunRandomly([ls in cjRandom<ArrayList<Int64>>], isEmpty),
         @RunRandomly([ls in cjRandom<ArrayList<Int64>>], count),
@@ -126,14 +127,15 @@ func getContext() : ArrayList<UnitFn> {
         @RunRandomly([count in randIntRange_(1, 5), ls in cjRandom<ArrayList<Int64>>], step_),
         // @RunMembers(ExampleClass, randObject<ExampleClass>)
     ])
-    let overallLib = lib
+    let overallLib = libCollectionsH
+    overallLib.add(all:libCollections)
     overallLib.add(all:o1_fns)
     overallLib.add(all:o2_fns)
 
     return overallLib
 }
 
-main() {
+func main_library_testing() {
     let lib = getContext()
     // runInContext(None, lib, 100) {
     //     executeRandomly(100)
