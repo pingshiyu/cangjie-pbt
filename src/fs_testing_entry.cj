@@ -20,14 +20,22 @@ func withFile(path: Path, k: (File) -> Unit): Unit {
     }
 }
 
+func dummyTester(path: Path, k: (File) -> Unit) : Unit {
+    perform Switch()
+    perform Switch()
+    perform Switch()
+}
+
 // Entry: build libFs with shared box, ensure tmp exists, run withFile under executeUntilDone in runInContext.
 public func main_fs_testing(): Unit {
-    ensureTmpExists()
-    func withFileBound(path: Path, k: (File) -> Unit): Unit {
-        withFile(path, k)
-    }
-    let seed: Option<UInt64> = Some(Random().nextUInt64())
-    runInContext(seed, getLibFs(), 20) {
-        executeUntilDone(@RunRandomly([path in randPathInTmp, k in randFunc<File, Unit>], withFileBound))
+    for (i in 0..1000) {
+        let fg = FsContext("tmp")
+        let seed: Option<UInt64> = None
+        runInContext(seed, getLibFs(fg), 50) {
+            fg.initialiseContext()
+            executeUntilDone(@RunRandomly([path in fg.randExistingFilePath, k in randFunc<File, Unit>], dummyTester))
+        }
+        fg.cleanup()
+        println("********** Iteration ${i} completed **********")
     }
 }
