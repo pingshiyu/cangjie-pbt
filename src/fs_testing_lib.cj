@@ -22,15 +22,15 @@ func createDirRecursive(path: Path): Unit {
 }
 
 // Builds libFs: path-based std.fs UnitFns plus close-current-file. Uses tmp under repo root.
-public func getLibFs(): ArrayList<UnitFn> {
+public func getLibFs(fg : FsContext): ArrayList<UnitFn> {
     ArrayList([
-        @RunRandomly([path in randPathInTmp], exists),
-        @RunRandomly([path in randPathInTmp], remove),
-        @RunRandomly([path in randPathInTmp], removeIfExists),
-        @RunRandomly([path in randPathInTmp], createDirRecursive),
-        @RunRandomly([path in randPathInTmp], File.create),
-        @RunRandomly([path in randPathInTmp], File.readFrom),
-        @RunRandomly([path in randPathInTmp, content in randSmallBytes], fsWriteTo),
-        @RunRandomly([path in randPathInTmp, content in randSmallBytes], fsAppendTo),
+        @RunRandomly([path in fg.randPath], fg.exists),
+        @RunRandomly([path in fg.randExistingPath], fg.remove),
+        @RunRandomly([path in fg.randPath], fg.removeIfExists),
+        @RunRandomly([path in fg.randFreshPath], fg.directoryCreateRecursive),
+        @RunRandomly([path in fg.randFreshPath], fg.fileCreate), 
+        @RunRandomly([path in fg.randExistingFilePath], fg.fileReadFrom),
+        @RunRandomly([path in fg.randExistingFilePath, content in randSmallBytes], fg.fileWriteTo),
+        @RunRandomly([path in fg.randExistingFilePath, content in randSmallBytes], fg.fileAppendTo),
     ])
 }

@@ -2,59 +2,229 @@
 package cangjie_experiments
 
 import std.collection.*
-import std.math.abs
+import std.math.*
 import std.random.*
-import std.fs.*
+import std.fs as stdFs
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.pbt.*
 
-// Base path for test files (tmp directory within cangjie-pbt repo; run from repo root).
-public const TMP_BASE: String = "tmp"
-
-// Short names to increase path collision and double-close likelihood.
-let SHORT_NAMES: ArrayList<String> = ArrayList(["a", "b", "x", "ab", "xy"])
-
-// Short content strings for file write/append (small arguments).
-let SHORT_CONTENTS: ArrayList<String> = ArrayList(["x", "y", "1", "ab"])
-
-// Returns a random path under TMP_BASE with a short filename.
-public func randPathInTmp(): Path {
-    let r = perform GetRandom()
-    let n = SHORT_NAMES.size
-    let idx = abs(r.nextInt64()) % Int64(n)
-    let name = SHORT_NAMES[idx]
-    return Path(TMP_BASE).join(name)
+func randShortString(n !: Int64 = 1): String {
+    // only choose from the alphabet [a-b]
+    let alphabet = ArrayList(["a", "b"])
+    // generate n random characters from the alphabet
+    var s = ""
+    for (i in 0..n) {
+        s += randElem(alphabet)
+    }
+    return s
 }
 
-// Returns a short random string for file content (small arguments).
-public func randSmallString(): String {
-    let r = perform GetRandom()
-    let n = SHORT_CONTENTS.size
-    let idx = abs(r.nextInt64()) % Int64(n)
-    return SHORT_CONTENTS[idx]
+// ArrayList has no indexOf in stdlib; extend it to match Array behavior.
+extend<T> ArrayList<T> where T <: Equatable<T> {
+    public func indexOf(element: T): Option<Int64> {
+        for (i in 0..this.size) {
+            if (this[i] == element) {
+                return Some(i)
+            }
+        }
+        return None
+    }
 }
 
 // Returns small content as Array<Byte> for File.writeTo/appendTo.
-public func randSmallBytes(): Array<Byte> {
-    return randSmallString().toArray()
+public func randSmallBytes(n !: Int64 = 5): Array<Byte> {
+    return randShortString(n:n).toArray()
 }
 
-// Ensures tmp directory exists and at least one short-named file exists so withFile(..., Read) can open it.
-public func ensureTmpExists(): Unit {
-    let p = Path(TMP_BASE)
-    if (!exists(p)) {
-        try {
-            Directory.create(p, recursive: true)
-        } catch (_: FSException) {
-            ()
+public func isParentOf(parent: stdFs.Path, child: stdFs.Path): Bool {
+    // normalise both normalise both paths
+    let parentNorm = parent.normalize()
+    let childNorm = child.normalize()
+    // use string check to see if parent is a parent of child
+    let parentStr = parentNorm.toString()   
+    let childStr = childNorm.toString()
+    return childStr.startsWith(parentStr)
+}
+
+public func findAndRemove<E>(e : E, ls : ArrayList<E>): Option<E> where E <: Equatable<E> {
+    let idx = ls.indexOf(e)
+    if (idx.isSome()) {
+        ls.remove(at: idx.getOrThrow())
+        return Some(e)
+    }
+    return None
+}
+
+public func removeAllChildPathsOf(parent: stdFs.Path, ls : ArrayList<stdFs.Path>): Unit {
+    // check if the path is a directory
+    // first get the file info
+    let info = stdFs.FileInfo(parent)
+    let isDir = info.isDirectory()
+    if (!isDir) {
+        return
+    }
+
+    // iterate over the list by while loop over indices, remove all children of parent
+    return
+    // var i : Int64 = 0
+    // while (i < ls.size) {
+    //     let path = ls[i]
+    //     if (isParentOf(parent, path)) {
+    //         ls.remove(at: i)
+    //         println("removing, list length is ${ls.size}")
+    //     } else {
+    //         i += 1
+    //         println("not removing, list length is ${ls.size}")
+    //     }
+    // }
+}
+
+public class FsContext {
+    let existingFilePaths : ArrayList<stdFs.Path> = ArrayList()
+    let existingFolderPaths : ArrayList<stdFs.Path> = ArrayList()
+    let tmpRoot : String
+
+    public FsContext(tmpRoot: String) {
+        this.tmpRoot = tmpRoot
+    }
+
+    public func initialiseContext(): Unit {
+        // create a random folder and a random file
+        let folder = createRandomFolder()
+        let file = createRandomFile()
+    }
+
+    // Returns a random path under TMP_BASE with a short filename.
+    public func randPath(n !: Int64 = 1): stdFs.Path {
+        // optionally add a path to an exsiting folder, if one exists
+        let pathInsideFolder: Bool = randBool(0.50)
+        if (pathInsideFolder && !existingFolderPaths.isEmpty()) {
+            let folder = randElem(existingFolderPaths)
+            return folder.join(randShortString(n:1))
+        } else {
+            return stdFs.Path(tmpRoot).join(randShortString(n:1))
         }
     }
-    let seedFile = Path(TMP_BASE).join("a")
-    if (!exists(seedFile)) {
-        try {
-            File.writeTo(seedFile, "x".toArray())
-        } catch (_: FSException) {
-            ()
+
+    public func randFreshPath(): stdFs.Path {
+        var path : stdFs.Path
+        var loops : Int64 = 1
+        do {
+            // length is the (log of the number of loops) + 1
+            let len = Int64(log(Float64(loops))) + 1
+            path = randPath(n:len)
+            loops += 1
+        } while (exists(path))
+        return path
+    }
+
+    public func createRandomFile(): stdFs.Path {
+        let path = randFreshPath()
+        fileCreate(path)
+        let contentLength = randIntRange(1, 10)
+        let content = randSmallBytes(n:contentLength)
+        fileWriteTo(path, content.toArray())
+        return path
+    }
+
+    public func createRandomFolder(): stdFs.Path {
+        let path = randFreshPath()
+        directoryCreateRecursive(path)
+        return path
+    }
+
+    public func randExistingFilePath(): stdFs.Path {
+        // choose from existingFilePaths
+        if (!existingFilePaths.isEmpty()) {
+            // open a random file if exists
+            randElem(existingFilePaths)
+        } else {
+            // create a random file and return its path
+            createRandomFile()
         }
+    }
+
+    public func randExistingPath(): stdFs.Path {
+        let combined = existingFilePaths.clone()
+        combined.add(all:existingFolderPaths)
+        if (!combined.isEmpty()) {
+            randElem(combined)
+        } else {
+            // create a random folder or file and return its path
+            let createFolder = randBool(0.50)
+            if (createFolder) {
+                createRandomFolder()
+            } else {
+                createRandomFile()
+            }
+        }
+    }
+
+    /* public api functions with semantics */
+    private func _removePath(path: stdFs.Path): Unit {
+        // print out paths before removal
+        println("Existing file paths:")
+        for (path in existingFilePaths) {
+            println("Existing file path: ${path}")
+        }
+        println("Existing folder paths:")
+        for (path in existingFolderPaths) {
+            println("Existing folder path: ${path}")
+        }
+        findAndRemove(path, existingFilePaths)
+        findAndRemove(path, existingFolderPaths)
+        removeAllChildPathsOf(path, existingFilePaths)
+        removeAllChildPathsOf(path, existingFolderPaths)
+        // print out paths after removal
+        println("Existing file paths:")
+        for (path in existingFilePaths) {
+            println("Existing file path: ${path}")
+        }
+        println("Existing folder paths:")
+        for (path in existingFolderPaths) {
+            println("Existing folder path: ${path}")
+        }
+        println("--------------------------------")
+    }
+    
+    public func exists(path: stdFs.Path): Bool {
+        return stdFs.exists(path)
+    }
+
+    public func remove(path: stdFs.Path): Unit {
+        _removePath(path)
+        stdFs.remove(path, recursive: true)
+    }
+
+    public func removeIfExists(path: stdFs.Path): Unit {
+        _removePath(path)
+        stdFs.removeIfExists(path, recursive: true)
+    }
+
+    public func directoryCreateRecursive(path: stdFs.Path): Unit {
+        existingFolderPaths.add(path)
+        stdFs.Directory.create(path, recursive: true)
+    }
+
+    public func fileCreate(path: stdFs.Path): Unit {
+        existingFilePaths.add(path)
+        stdFs.File.create(path)
+    }
+
+    public func fileReadFrom(path: stdFs.Path): Array<Byte> {
+        stdFs.File.readFrom(path)
+    }
+
+    public func fileWriteTo(path: stdFs.Path, content: Array<Byte>): Unit {
+        stdFs.File.writeTo(path, content)
+    }
+
+    public func fileAppendTo(path: stdFs.Path, content: Array<Byte>): Unit {
+        stdFs.File.appendTo(path, content)
+    }
+
+    public func cleanup(): Unit {
+        // delete the tmp directory recursively
+        stdFs.removeIfExists(stdFs.Path(this.tmpRoot), recursive: true)
     }
 }

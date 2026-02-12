@@ -34,6 +34,8 @@ YOUR TASK:
 DOCUMENTATION AND EXECUTION:
 Please code up this in Cangjie. To refer to the relevant documentation in Cangjie, there is a script to perform semantic/textual searches of the Cangjie documentation. More details are in the document `/Users/jacob/projects/pbt-dev/cangjie_docs_db/LLM_INSTRUCTIONS.md`.
 
+This is important. You need to read the documentation to code correctly. Therefore, if you cannot run the script described in LLM_INSTRUCTIONS, then stop rather than continue.
+
 Please create new files rather than modifying old files for your changes.
 The main function in `/Users/jacob/projects/pbt-dev/cangjie-pbt/src/main.cj` can be used as an entry point for your program.
 

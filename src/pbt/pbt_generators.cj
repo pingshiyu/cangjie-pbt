@@ -3,10 +3,15 @@ package cangjie_experiments.pbt
 import std.collection.*
 import std.math.*
 
+class ChooseFromEmptyListError <: Exception {
+    public ChooseFromEmptyListError(message: String) {
+        super(message)
+    }
+}
 
 // p denotes the probability of being true.
 public func randBool(p : Float64) : Bool {
-withScope("randBool(${p})") { 
+withScope("randBool(${p})") {
     let i = rand()
     let trueLimit = 128.0 * (1.0 - p) // abs(v) above this => true
     return Float64(abs(Int16(i))) > trueLimit // such that reductions towards 0 => turns this false
@@ -65,6 +70,9 @@ withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")") {
 public func randElem<T>(ls : List<T>): T {
 withScope("randElem<T>(ls)") {
     let n : Int64 = ls.size
+    if (n == 0) {
+        throw ChooseFromEmptyListError("randElem: list is empty")
+    }
     let ix: Int64 = randIntRange(0, n)
     return ls[ix] 
 }
@@ -115,6 +123,7 @@ public func randIntRange_(begin: Int64, end: Int64): () -> Int64 {{=>
 
 // Generator for nested lists (lists of lists)
 public func randNestedList<T>(eLen: Int64, g: () -> T): () -> List<List<T>> {{=>
+withScope("randNestedList<T>(eLen, g)") {
     let p: Float64 = 1.0 - 1.0 / Float64(eLen)
     let outerList: List<List<T>> = ArrayList<List<T>>()
     while (randBool(p)) {
@@ -122,4 +131,26 @@ public func randNestedList<T>(eLen: Int64, g: () -> T): () -> List<List<T>> {{=>
         outerList.add(innerList)
     }
     return outerList
- }}
+}}}
+
+ public func randAlphanumericChar(): () -> Rune {{=>
+ withScope("randAlphanumericChar()") {
+    // pick a random ascii character
+    let c = Rune(randIntRange(0, 128))    
+    if (c.isAsciiNumberOrLetter()) {
+        return c
+    } else {
+        // try again, should generally generate an alphanumeric quickly
+        return randAlphanumericChar()()
+    }
+ }}}
+
+ public func randString(sLen: Int64): () -> String {{=>
+ withScope("randString(sLen)") {
+    // pick n random ascii characters
+    var s: String = ""
+    for (_ in 0..sLen) {
+        s += randAlphanumericChar()().toString()
+    }
+    return s
+ }}}
