@@ -154,3 +154,18 @@ withScope("randNestedList<T>(eLen, g)") {
     }
     return s
  }}}
+
+ public func randShortString(n !: Int64 = 1, alphabet !: List<String> = ArrayList(["a", "b"])): () ->  String {{=>
+ withScope("randShortString(${n})") {
+    // generate n random characters from the alphabet
+    var s = ""
+    for (_ in 0..n) {
+        s += randElem(alphabet)
+    }
+    return s
+}}}
+
+public func randSmallBytes(n !: Int64 = 5): () -> Array<Byte> {{=>
+withScope("randSmallBytes(${n})") {
+    return randShortString(n:n)().toArray()
+}}}
