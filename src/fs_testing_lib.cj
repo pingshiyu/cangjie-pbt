@@ -7,6 +7,7 @@ import stdx.effect.*
 import cangjie_experiments.define.*
 import cangjie_experiments.resumptions.loop.*
 import cangjie_experiments.resumptions.*
+import cangjie_experiments.pbt.*
 
 // Wrappers for fs APIs so @RunRandomly can pass (path, ...).
 func fsWriteTo(path: Path, buffer: Array<Byte>): Unit {
@@ -30,7 +31,7 @@ public func getLibFs(fg : FsContext): ArrayList<UnitFn> {
         @RunRandomly([path in fg.randFreshPath], fg.directoryCreateRecursive),
         @RunRandomly([path in fg.randFreshPath], fg.fileCreate), 
         @RunRandomly([path in fg.randExistingFilePath], fg.fileReadFrom),
-        @RunRandomly([path in fg.randExistingFilePath, content in randSmallBytes], fg.fileWriteTo),
-        @RunRandomly([path in fg.randExistingFilePath, content in randSmallBytes], fg.fileAppendTo),
+        @RunRandomly([path in fg.randExistingFilePath, content in randSmallBytes()], fg.fileWriteTo),
+        @RunRandomly([path in fg.randExistingFilePath, content in randSmallBytes()], fg.fileAppendTo),
     ])
 }

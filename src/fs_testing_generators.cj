@@ -8,17 +8,6 @@ import std.fs as stdFs
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.pbt.*
 
-func randShortString(n !: Int64 = 1): String {
-    // only choose from the alphabet [a-b]
-    let alphabet = ArrayList(["a", "b"])
-    // generate n random characters from the alphabet
-    var s = ""
-    for (i in 0..n) {
-        s += randElem(alphabet)
-    }
-    return s
-}
-
 // ArrayList has no indexOf in stdlib; extend it to match Array behavior.
 extend<T> ArrayList<T> where T <: Equatable<T> {
     public func indexOf(element: T): Option<Int64> {
@@ -29,11 +18,6 @@ extend<T> ArrayList<T> where T <: Equatable<T> {
         }
         return None
     }
-}
-
-// Returns small content as Array<Byte> for File.writeTo/appendTo.
-public func randSmallBytes(n !: Int64 = 5): Array<Byte> {
-    return randShortString(n:n).toArray()
 }
 
 public func isParentOf(parent: stdFs.Path, child: stdFs.Path): Bool {
@@ -56,6 +40,11 @@ public func findAndRemove<E>(e : E, ls : ArrayList<E>): Option<E> where E <: Equ
 }
 
 public func removeAllChildPathsOf(parent: stdFs.Path, ls : ArrayList<stdFs.Path>): Unit {
+    // ensure file exists at path
+    if (!stdFs.exists(parent)) {
+        return
+    }
+
     // check if the path is a directory
     // first get the file info
     let info = stdFs.FileInfo(parent)
@@ -65,18 +54,17 @@ public func removeAllChildPathsOf(parent: stdFs.Path, ls : ArrayList<stdFs.Path>
     }
 
     // iterate over the list by while loop over indices, remove all children of parent
-    return
-    // var i : Int64 = 0
-    // while (i < ls.size) {
-    //     let path = ls[i]
-    //     if (isParentOf(parent, path)) {
-    //         ls.remove(at: i)
-    //         println("removing, list length is ${ls.size}")
-    //     } else {
-    //         i += 1
-    //         println("not removing, list length is ${ls.size}")
-    //     }
-    // }
+    var i : Int64 = 0
+    while (i < ls.size) {
+        let path = ls[i]
+        if (isParentOf(parent, path)) {
+            ls.remove(at: i)
+            println("removing, list length is ${ls.size}")
+        } else {
+            i += 1
+            println("not removing, list length is ${ls.size}")
+        }
+    }
 }
 
 public class FsContext {
@@ -88,6 +76,19 @@ public class FsContext {
         this.tmpRoot = tmpRoot
     }
 
+    public func printPaths(): Unit {
+        println("--------------------------------")
+        println("Existing file paths:")
+        for (path in existingFilePaths) {
+            println("${path}")
+        }
+        println("Existing folder paths:")
+        for (path in existingFolderPaths) {
+            println("${path}")
+        }
+        println("--------------------------------")
+    }
+
     public func initialiseContext(): Unit {
         // create a random folder and a random file
         let folder = createRandomFolder()
@@ -96,13 +97,16 @@ public class FsContext {
 
     // Returns a random path under TMP_BASE with a short filename.
     public func randPath(n !: Int64 = 1): stdFs.Path {
+        if (n < 0) {
+            throw Exception("randPath: n must be >= 0, got " + n.toString())
+        }
         // optionally add a path to an exsiting folder, if one exists
         let pathInsideFolder: Bool = randBool(0.50)
         if (pathInsideFolder && !existingFolderPaths.isEmpty()) {
             let folder = randElem(existingFolderPaths)
-            return folder.join(randShortString(n:1))
+            return folder.join(randShortString(n:n)())
         } else {
-            return stdFs.Path(tmpRoot).join(randShortString(n:1))
+            return stdFs.Path(tmpRoot).join(randShortString(n:n)())
         }
     }
 
@@ -122,7 +126,7 @@ public class FsContext {
         let path = randFreshPath()
         fileCreate(path)
         let contentLength = randIntRange(1, 10)
-        let content = randSmallBytes(n:contentLength)
+        let content = randSmallBytes(n:contentLength)()
         fileWriteTo(path, content.toArray())
         return path
     }
@@ -163,28 +167,12 @@ public class FsContext {
     /* public api functions with semantics */
     private func _removePath(path: stdFs.Path): Unit {
         // print out paths before removal
-        println("Existing file paths:")
-        for (path in existingFilePaths) {
-            println("Existing file path: ${path}")
-        }
-        println("Existing folder paths:")
-        for (path in existingFolderPaths) {
-            println("Existing folder path: ${path}")
-        }
+        // printPaths()
         findAndRemove(path, existingFilePaths)
         findAndRemove(path, existingFolderPaths)
         removeAllChildPathsOf(path, existingFilePaths)
         removeAllChildPathsOf(path, existingFolderPaths)
-        // print out paths after removal
-        println("Existing file paths:")
-        for (path in existingFilePaths) {
-            println("Existing file path: ${path}")
-        }
-        println("Existing folder paths:")
-        for (path in existingFolderPaths) {
-            println("Existing folder path: ${path}")
-        }
-        println("--------------------------------")
+        // printPaths()
     }
     
     public func exists(path: stdFs.Path): Bool {
@@ -225,6 +213,7 @@ public class FsContext {
 
     public func cleanup(): Unit {
         // delete the tmp directory recursively
+        println("Cleaning up, deleting tmp directory ${this.tmpRoot}")
         stdFs.removeIfExists(stdFs.Path(this.tmpRoot), recursive: true)
     }
 }
