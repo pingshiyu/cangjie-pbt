@@ -42,6 +42,7 @@ func randomPathIn(folder: String): () -> Path {{ =>
 public func main_fs_testing(): Unit {
     for (i in 0..100) {
         let fg = FsContext("tmp")
+        fg.cleanup()
         let seed: Option<UInt64> = None
         runInContext(seed, getLibFs(fg), 50) {
             fg.initialiseContext()
