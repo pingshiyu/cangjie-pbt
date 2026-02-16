@@ -9,19 +9,6 @@ import cangjie_experiments.resumptions.loop.*
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.pbt.*
 
-// Wrappers for fs APIs so @RunRandomly can pass (path, ...).
-func fsWriteTo(path: Path, buffer: Array<Byte>): Unit {
-    File.writeTo(path, buffer)
-}
-
-func fsAppendTo(path: Path, buffer: Array<Byte>): Unit {
-    File.appendTo(path, buffer)
-}
-
-func createDirRecursive(path: Path): Unit {
-    Directory.create(path, recursive: true)
-}
-
 // Symlink runners only on non-Windows (symlink APIs may require privileges or differ on Windows).
 @When[os != "Windows"]
 func getSymlinkRunners(fg: FsContext): ArrayList<UnitFn> {
@@ -36,7 +23,7 @@ func getSymlinkRunners(fg: FsContext): ArrayList<UnitFn> {
 }
 
 // Builds libFs: path-based std.fs UnitFns plus close-current-file. Uses tmp under repo root.
-// TODO: copyWithoutOverwrite, renameWithoutOverwrite – not yet registered.
+// TODO: copyWithoutOverwrite, renameWithoutOverwrite - not yet registered.
 public func getLibFs(fg : FsContext): ArrayList<UnitFn> {
     let lib = ArrayList([
         @RunRandomly([path in fg.randPath], fg.exists),
@@ -52,7 +39,6 @@ public func getLibFs(fg : FsContext): ArrayList<UnitFn> {
         @RunRandomly([sourcePath in fg.randExistingPath, to in fg.randFreshPath], fg.renameWithOverwrite),
         @RunRandomly([path in fg.randFreshPathWithExistingParent], fg.directoryCreateNonRecursive),
         @RunRandomly([directoryPath in fg.randExistingDirPath], fg.directoryCreateTemp),
-        @RunRandomly([path in fg.randExistingDirPath], fg.directoryIsEmpty),
         @RunRandomly([path in fg.randExistingDirPath], fg.directoryReadFrom),
         @RunRandomly([path in fg.randExistingDirPath], fg.directoryWalk),
         @RunRandomly([directoryPath in fg.randExistingDirPath], fg.fileCreateTemp),

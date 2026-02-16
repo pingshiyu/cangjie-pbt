@@ -61,6 +61,35 @@ public func removeAllChildPathsOf(parent: stdFs.Path, ls : ArrayList<stdFs.Path>
     }
 }
 
+// Returns the parent directory of path, or None if path has no separator (single component).
+private func pathParent(path: stdFs.Path): Option<stdFs.Path> {
+    let s = path.normalize().toString()
+    var i = s.size - 1
+    while (i >= 0) {
+        if (s[i] == b'/' || s[i] == b'\\') {
+            if (i > 0) {
+                return Some(stdFs.Path(s[0..i]))
+            }
+            return None
+        }
+        i -= 1
+    }
+    return None
+}
+
+// Returns the relative path of child under ancestor (e.g. "b/c" for ancestor=tmp/a, child=tmp/a/b/c). Requires isParentOf(ancestor, child) or ancestor == child.
+private func relPathUnder(ancestor: stdFs.Path, child: stdFs.Path): String {
+    let aStr = ancestor.normalize().toString()
+    let cStr = child.normalize().toString()
+    var rest = cStr.removePrefix(aStr)
+    if (rest.startsWith("/")) {
+        rest = rest[1..]
+    } else if (rest.startsWith("\\")) {
+        rest = rest[1..]
+    }
+    return rest
+}
+
 public class FsContext {
     let existingFilePaths : ArrayList<stdFs.Path> = ArrayList()
     let existingFolderPaths : ArrayList<stdFs.Path> = ArrayList()
@@ -317,89 +346,188 @@ public class FsContext {
         }
     }
 
-    /* public api functions with semantics. Use normalized path so list membership matches. */
+    /* public api functions with semantics. Use pathForState so state key matches stored form (tmp-relative). */
     private func _removePath(path: stdFs.Path): Unit {
-        let n = path.normalize()
+        let n = pathForState(path.normalize())
         findAndRemove(n, existingFilePaths)
         findAndRemove(n, existingFolderPaths)
         findAndRemove(n, existingSymlinkPaths)
         removeAllChildPathsOf(n, existingFilePaths)
         removeAllChildPathsOf(n, existingFolderPaths)
         removeAllChildPathsOf(n, existingSymlinkPaths)
+        // Also remove any path P in state whose pathForState(P) equals n or is under n (defensive for path representation).
+        var i : Int64 = 0
+        while (i < existingFilePaths.size) {
+            let p = pathForState(existingFilePaths[i].normalize())
+            if (p == n || isParentOf(n, p)) {
+                existingFilePaths.remove(at: i)
+            } else {
+                i += 1
+            }
+        }
+        i = 0
+        while (i < existingFolderPaths.size) {
+            let p = pathForState(existingFolderPaths[i].normalize())
+            if (p == n || isParentOf(n, p)) {
+                existingFolderPaths.remove(at: i)
+            } else {
+                i += 1
+            }
+        }
+        i = 0
+        while (i < existingSymlinkPaths.size) {
+            let p = pathForState(existingSymlinkPaths[i].normalize())
+            if (p == n || isParentOf(n, p)) {
+                existingSymlinkPaths.remove(at: i)
+            } else {
+                i += 1
+            }
+        }
     }
-    
+
+    // Add path and all its ancestor directories (under tmpRoot) to existingFolderPaths. tmpRoot itself is not tracked.
+    private func addAncestorDirectoriesUnderTmp(path: stdFs.Path): Unit {
+        let root = stdFs.Path(tmpRoot).normalize()
+        var p = path.normalize()
+        while (p != root) {
+            let stateP = pathForState(p)
+            if (existingFolderPaths.indexOf(stateP).isNone()) {
+                existingFolderPaths.add(stateP)
+            }
+            match (pathParent(p)) {
+                case Some(par) => p = par
+                case None => return
+            }
+        }
+    }
+
+    // Collect all paths in state that are equal to or under root (for copy/rename tree updates). State paths are in pathForState form.
+    private func collectPathsUnder(root: stdFs.Path): (ArrayList<stdFs.Path>, ArrayList<stdFs.Path>, ArrayList<stdFs.Path>) {
+        let rootState = pathForState(root.normalize())
+        let files = ArrayList<stdFs.Path>()
+        let dirs = ArrayList<stdFs.Path>()
+        let symlinks = ArrayList<stdFs.Path>()
+        for (path in existingFilePaths) {
+            if (path == rootState || isParentOf(rootState, path)) {
+                files.add(path)
+            }
+        }
+        for (path in existingFolderPaths) {
+            if (path == rootState || isParentOf(rootState, path)) {
+                dirs.add(path)
+            }
+        }
+        for (path in existingSymlinkPaths) {
+            if (path == rootState || isParentOf(rootState, path)) {
+                symlinks.add(path)
+            }
+        }
+        return (files, dirs, symlinks)
+    }
+
+    private func addTreeUnderDest(sourceRoot: stdFs.Path, to: stdFs.Path, files: ArrayList<stdFs.Path>, dirs: ArrayList<stdFs.Path>, symlinks: ArrayList<stdFs.Path>): Unit {
+        let toN = pathForState(to.normalize())
+        let sourceState = pathForState(sourceRoot.normalize())
+        for (path in dirs) {
+            if (path == sourceState) {
+                existingFolderPaths.add(toN)
+            } else {
+                let rel = relPathUnder(sourceState, path)
+                existingFolderPaths.add(pathForState(toN.join(rel).normalize()))
+            }
+        }
+        for (path in files) {
+            let rel = relPathUnder(sourceState, path)
+            existingFilePaths.add(pathForState(toN.join(rel).normalize()))
+        }
+        for (path in symlinks) {
+            let rel = relPathUnder(sourceState, path)
+            existingSymlinkPaths.add(pathForState(toN.join(rel).normalize()))
+        }
+    }
+
+    /** Pre: (none). Post: result reflects stdFs.exists(path); state unchanged; validateStateMatchesFilesystem() holds. */
     public func exists(path: stdFs.Path): Bool {
         let result = stdFs.exists(path)
         validateStateMatchesFilesystem()
         return result
     }
 
+    /** Pre: path exists (file, directory, or symlink) and is in state. Post: path and all descendants removed from disk and from state; validateStateMatchesFilesystem() holds. */
     public func remove(path: stdFs.Path): Unit {
-        _removePath(path)
         stdFs.remove(path, recursive: true)
-        validateStateMatchesFilesystem()
-    }
-
-    public func removeIfExists(path: stdFs.Path): Unit {
         _removePath(path)
+        validateStateMatchesFilesystem()
+    }
+
+    /** Pre: (none). Post: if path existed, it and all descendants removed from disk and from state; otherwise no-op; validateStateMatchesFilesystem() holds. */
+    public func removeIfExists(path: stdFs.Path): Unit {
         stdFs.removeIfExists(path, recursive: true)
+        _removePath(path)
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: path does not exist (e.g. randFreshPath). Post: path and all ancestor dirs under tmpRoot exist on disk and are in existingFolderPaths; validateStateMatchesFilesystem() holds. */
     public func directoryCreateRecursive(path: stdFs.Path): Unit {
-        existingFolderPaths.add(path.normalize())
         stdFs.Directory.create(path, recursive: true)
+        addAncestorDirectoriesUnderTmp(path)
+        existingFolderPaths.add(pathForState(path.normalize()))
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: path does not exist; parent directory exists (e.g. randFreshPath under existing folder). Post: path exists as regular file on disk and is in existingFilePaths; validateStateMatchesFilesystem() holds. */
     public func fileCreate(path: stdFs.Path): Unit {
-        existingFilePaths.add(path.normalize())
         stdFs.File.create(path)
+        existingFilePaths.add(pathForState(path.normalize()))
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: path is in existingFilePaths and is a regular file. Post: returns file contents; state unchanged; validateStateMatchesFilesystem() holds. */
     public func fileReadFrom(path: stdFs.Path): Array<Byte> {
         let result = stdFs.File.readFrom(path)
         validateStateMatchesFilesystem()
         return result
     }
 
+    /** Pre: path is in existingFilePaths. Post: file at path has content; state unchanged; validateStateMatchesFilesystem() holds. */
     public func fileWriteTo(path: stdFs.Path, content: Array<Byte>): Unit {
         stdFs.File.writeTo(path, content)
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: path is in existingFilePaths. Post: content appended to file at path; state unchanged; validateStateMatchesFilesystem() holds. */
     public func fileAppendTo(path: stdFs.Path, content: Array<Byte>): Unit {
         stdFs.File.appendTo(path, content)
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: path is in state (file, dir, or symlink). Post: no state change (canonicalize is side-effect-free for our model); validateStateMatchesFilesystem() holds. */
     public func canonicalize(path: stdFs.Path): Unit {
         stdFs.canonicalize(path)
         validateStateMatchesFilesystem()
     }
 
-    // Copy with overwrite. No-op if sourcePath == to or (when source is dir) to is under sourcePath.
+    /** Pre: sourcePath is in state; to is fresh (e.g. randFreshPath) or will be overwritten; not sourcePath == to; if source is dir, to not under sourcePath. Post: to (and subtree if dir) exists on disk and in state; sourcePath unchanged; validateStateMatchesFilesystem() holds. */
     public func copyWithOverwrite(sourcePath: stdFs.Path, to: stdFs.Path): Unit {
         if (sourcePath.normalize() == to.normalize()) {
             return
         }
-        if (existingFolderPaths.indexOf(sourcePath).isSome() && isParentOf(sourcePath, to)) {
+        if (existingFolderPaths.indexOf(pathForState(sourcePath.normalize())).isSome() && isParentOf(sourcePath, to)) {
             return
         }
-        let wasFile = existingFilePaths.indexOf(sourcePath).isSome()
-        let wasDir = existingFolderPaths.indexOf(sourcePath).isSome()
-        let wasSym = existingSymlinkPaths.indexOf(sourcePath).isSome()
+        let sourceStatePath = pathForState(sourcePath.normalize())
+        let wasFile = existingFilePaths.indexOf(sourceStatePath).isSome()
+        let wasDir = existingFolderPaths.indexOf(sourceStatePath).isSome()
+        let wasSym = existingSymlinkPaths.indexOf(sourceStatePath).isSome()
+        let (subFiles, subDirs, subSymlinks) = collectPathsUnder(sourcePath)
         stdFs.copy(sourcePath, to: to, overwrite: true)
         _removePath(to)
-        let toN = to.normalize()
+        let toN = pathForState(to.normalize())
         if (wasFile) {
             existingFilePaths.add(toN)
-        }
-        if (wasDir) {
-            existingFolderPaths.add(toN)
-        }
-        if (wasSym) {
+        } else if (wasDir) {
+            addTreeUnderDest(sourcePath, to, subFiles, subDirs, subSymlinks)
+        } else if (wasSym) {
             existingSymlinkPaths.add(toN)
         }
         validateStateMatchesFilesystem()
@@ -408,28 +536,28 @@ public class FsContext {
     // TODO: copyWithoutOverwrite(sourcePath, to) – leave as TODO, not registered in getLibFs.
     // public func copyWithoutOverwrite(sourcePath: stdFs.Path, to: stdFs.Path): Unit { ... }
 
-    // Rename with overwrite. No-op if sourcePath == to or (when source is dir) to is under sourcePath.
+    /** Pre: sourcePath is in state; to is fresh or will be overwritten; not sourcePath == to; if source is dir, to not under sourcePath. Post: sourcePath and its subtree removed from disk and state; to (and subtree if dir) exists on disk and in state; validateStateMatchesFilesystem() holds. */
     public func renameWithOverwrite(sourcePath: stdFs.Path, to: stdFs.Path): Unit {
         if (sourcePath.normalize() == to.normalize()) {
             return
         }
-        if (existingFolderPaths.indexOf(sourcePath).isSome() && isParentOf(sourcePath, to)) {
+        if (existingFolderPaths.indexOf(pathForState(sourcePath.normalize())).isSome() && isParentOf(sourcePath, to)) {
             return
         }
-        let wasFile = existingFilePaths.indexOf(sourcePath).isSome()
-        let wasDir = existingFolderPaths.indexOf(sourcePath).isSome()
-        let wasSym = existingSymlinkPaths.indexOf(sourcePath).isSome()
+        let sourceStatePath = pathForState(sourcePath.normalize())
+        let wasFile = existingFilePaths.indexOf(sourceStatePath).isSome()
+        let wasDir = existingFolderPaths.indexOf(sourceStatePath).isSome()
+        let wasSym = existingSymlinkPaths.indexOf(sourceStatePath).isSome()
+        let (subFiles, subDirs, subSymlinks) = collectPathsUnder(sourcePath)
         stdFs.rename(sourcePath, to: to, overwrite: true)
         _removePath(sourcePath)
         _removePath(to)
-        let toN = to.normalize()
+        let toN = pathForState(to.normalize())
         if (wasFile) {
             existingFilePaths.add(toN)
-        }
-        if (wasDir) {
-            existingFolderPaths.add(toN)
-        }
-        if (wasSym) {
+        } else if (wasDir) {
+            addTreeUnderDest(sourcePath, to, subFiles, subDirs, subSymlinks)
+        } else if (wasSym) {
             existingSymlinkPaths.add(toN)
         }
         validateStateMatchesFilesystem()
@@ -437,45 +565,36 @@ public class FsContext {
 
     // TODO: renameWithoutOverwrite(sourcePath, to) - leave as TODO, not registered in getLibFs.
 
+    /** Pre: path does not exist; parent directory exists and is in existingFolderPaths (e.g. randFreshPathWithExistingParent). Post: path exists as directory on disk and is in existingFolderPaths; validateStateMatchesFilesystem() holds. */
     public func directoryCreateNonRecursive(path: stdFs.Path): Unit {
         stdFs.Directory.create(path, recursive: false)
-        existingFolderPaths.add(path.normalize())
+        existingFolderPaths.add(pathForState(path.normalize()))
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: directoryPath is in existingFolderPaths. Post: a new temp directory exists under directoryPath on disk and its path is in existingFolderPaths; validateStateMatchesFilesystem() holds. */
     public func directoryCreateTemp(directoryPath: stdFs.Path): Unit {
         let p = stdFs.Directory.createTemp(directoryPath)
         existingFolderPaths.add(pathForState(p))
         validateStateMatchesFilesystem()
     }
+    
 
-    public func directoryIsEmpty(path: stdFs.Path): Unit {
-        try {
-            stdFs.Directory.isEmpty(path)
-        } catch (_) {
-            _removePath(path)
-        }
-        validateStateMatchesFilesystem()
-    }
-
+    /* Directory.isEmpty, won't do as it has no side effects apart from erroring */ 
+    
+    /** Pre: path is in existingFolderPaths and exists as directory on disk. Post: no state change; validateStateMatchesFilesystem() holds. */
     public func directoryReadFrom(path: stdFs.Path): Unit {
-        try {
-            stdFs.Directory.readFrom(path)
-        } catch (_) {
-            _removePath(path)
-        }
+        stdFs.Directory.readFrom(path)
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: path is in existingFolderPaths and exists as directory on disk. Post: no state change; validateStateMatchesFilesystem() holds. */
     public func directoryWalk(path: stdFs.Path): Unit {
-        try {
-            stdFs.Directory.walk(path) { _ => true }
-        } catch (_) {
-            _removePath(path)
-        }
+        stdFs.Directory.walk(path) { _ => true }
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: directoryPath is in existingFolderPaths. Post: a new temp file exists under directoryPath on disk and its path is in existingFilePaths; validateStateMatchesFilesystem() holds. */
     public func fileCreateTemp(directoryPath: stdFs.Path): Unit {
         let f = stdFs.File.createTemp(directoryPath)
         try {
@@ -487,15 +606,17 @@ public class FsContext {
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: link does not exist (e.g. randFreshPath); to exists and is in state. Post: link exists as symlink on disk and is in existingSymlinkPaths; validateStateMatchesFilesystem() holds. */
     public func symbolicLinkCreate(link: stdFs.Path, to: stdFs.Path): Unit {
         if (stdFs.exists(link)) {
             return
         }
         stdFs.SymbolicLink.create(link, to: to)
-        existingSymlinkPaths.add(link.normalize())
+        existingSymlinkPaths.add(pathForState(link.normalize()))
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: path is in existingSymlinkPaths (or no-op when empty). Post: no state change; validateStateMatchesFilesystem() holds. */
     public func symbolicLinkReadFrom(path: stdFs.Path): Unit {
         if (existingSymlinkPaths.isEmpty()) {
             return
@@ -504,12 +625,13 @@ public class FsContext {
         validateStateMatchesFilesystem()
     }
 
+    /** Pre: link does not exist; to is in existingFilePaths; link != to. Post: link exists as hard link on disk and is in existingFilePaths; validateStateMatchesFilesystem() holds. */
     public func hardLinkCreate(link: stdFs.Path, to: stdFs.Path): Unit {
         if (link.normalize() == to.normalize()) {
             return
         }
         stdFs.HardLink.create(link, to: to)
-        existingFilePaths.add(link.normalize())
+        existingFilePaths.add(pathForState(link.normalize()))
         validateStateMatchesFilesystem()
     }
 
