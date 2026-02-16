@@ -1,4 +1,4 @@
-package cangjie_experiments
+package cangjie_experiments.pbt
 
 import std.collection.*
 
@@ -23,7 +23,7 @@ interface ReductionStrategy {
 }
 
 /* Attempt a reduction at every spot, this will take time O(n^2) for n RUnits. */
-class ReduceToSimpleStrategy <: ReductionStrategy {
+public class ReduceToSimpleStrategy <: ReductionStrategy {
 
     /* Attempt reductions at every location, stop if an interesting reduction is found.
     Return a boolean to indicate whether an interesting reduction were found. */
@@ -57,16 +57,16 @@ class ReduceToSimpleStrategy <: ReductionStrategy {
 
 /* Make reductions with the default reduction strategy (of applying our reduction strategies
 one by one in a loop). */
-func makeReduction(rs: List<RUnit>, hasProp: () -> Bool) : RandTree {
+public func makeReduction(rs: List<RUnit>, hasProp: () -> Bool) : RandTree {
     // run the program once to build the initial randtree, also check that it is interesting
-    // this assumes interesting is a function that uses randomness effects
+    // this assumes interesting is a public function that uses randomness effects
     let rt = RandTree(None, None)
     let rtb = Box<RandTree>(rt)
     let rsu = ArrayList<RUnit>(rs)
     let initiallyInteresting = runRandTracked(rs, rtb, hasProp)
 
     if (!initiallyInteresting) {
-        throw WrongArgumentException("Input function, along with random seed, does not contain prop to begin with.")
+        throw WrongArgumentException("Input public function, along with random seed, does not contain prop to begin with.")
     }
 
     // run apply to get the reduced tree
