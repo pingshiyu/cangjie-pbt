@@ -8,22 +8,58 @@ import cangjie_experiments.define.*
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.resumptions.loop.*
 import cangjie_experiments.pbt.*
+import std.io.*
 
-// withFile(path, k): opens file at path, stores in currentFile box, runs k(file), then closes in finally.
-// Double-close occurs if k performs Switch() and the handler runs the close-current-file UnitFn.
+/* 
+withFile(path, k): opens file at path, stores in currentFile box, runs k(file), then closes in finally.
+Double-close occurs if k performs Switch() and the handler runs the close-current-file UnitFn.
+Potential bugs that can be highlighted:
+- if path already exists in the environment, then there will be an error when creating the file.
+- if the file at `path` is deleted by k(f), then a bug will be triggered when trying to open the file later.
+- if the file at `path` has been modified by k(f), then a bug will be triggered when checking the initial contents.
+*/
 func withFile(path: Path, k: (File) -> Unit): Unit {
     // create a random file with content at `path`
     let content = randSmallBytes(n:10)()
-    File.create(path)
-    File.writeTo(path, content)
 
-    // apply f to its contents
+    // Bug triggered here: if the file at `path` already exists, then a bug will be triggered when creating the file.
+    if (!exists(path)) {
+        File.create(path)
+        File.writeTo(path, content)
+    } else {
+        throw Exception("withFile bug triggered: file ${path} already exists.")
+    }
+
+    // open file for reading and apply k(f) to it a few times
     let f = File(path, OpenMode.Read)
     try {
+        k(f)
+        k(f)
         k(f)
     } finally {
         f.close()
     }
+
+    // check for existence of file
+    // Bug triggered here: if our file happens to be deleted by k(f)
+    if (!exists(path)) {
+        throw Exception("withFile bug triggered: file ${path} does not exist.")
+    }
+
+    // open the file and appnd to the end
+    let fa = File(path, OpenMode.ReadWrite)
+
+    // check the initial contents hasn't been changed
+    // Bug triggered here: if our file has been modified by k(f), then the first line will not be equal to content.
+    let firstLine = Array<Byte>(1024, repeat: 0)
+    fa.read(firstLine)
+    for (i in 0..content.size) {
+        if (firstLine[i] != content[i]) {
+            throw Exception("withFile bug triggered: first line of file ${path} is not equal to content.")
+        }
+    }
+    fa.write("Final log entry, completed successfully.".toArray())
+    fa.close()
 }
 
 func dummyTester(path: Path, k: (File) -> Unit) : Unit {
@@ -46,7 +82,7 @@ public func main_fs_testing(): Unit {
         let seed: Option<UInt64> = None
         runInContext(seed, getLibFs(fg), 50) {
             fg.initialiseContext()
-            executeUntilDone(@RunRandomly([path in randomPathIn("tmp"), k in randFunc<File, Unit>], dummyTester))
+            executeUntilDone(@RunRandomly([path in randomPathIn("tmp"), k in randFunc<File, Unit>], withFile))
         }
         fg.cleanup()
         println("********** Iteration ${i+1} completed **********")

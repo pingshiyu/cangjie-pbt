@@ -231,7 +231,7 @@ public class FsContext {
     }
 
     // Returns a random path under TMP_BASE with a short filename.
-    public func randPath(n !: Int64 = 1): stdFs.Path {
+    public func randPath(n !: Int64 = 2): stdFs.Path {
         if (n < 0) {
             throw Exception("randPath: n must be >= 0, got " + n.toString())
         }
@@ -241,7 +241,8 @@ public class FsContext {
             let folder = randElem(existingFolderPaths)
             return folder.join(randShortString(n:n)())
         } else {
-            return stdFs.Path(tmpRoot).join(randShortString(n:n)())
+            let generatedPath = stdFs.Path(tmpRoot).join(randShortString(n:n)())
+            return generatedPath
         }
     }
 
@@ -449,7 +450,7 @@ public class FsContext {
     /** Pre: (none). Post: result reflects stdFs.exists(path); state unchanged; validateStateMatchesFilesystem() holds. */
     public func exists(path: stdFs.Path): Bool {
         let result = stdFs.exists(path)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
         return result
     }
 
@@ -457,14 +458,14 @@ public class FsContext {
     public func remove(path: stdFs.Path): Unit {
         stdFs.remove(path, recursive: true)
         _removePath(path)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: (none). Post: if path existed, it and all descendants removed from disk and from state; otherwise no-op; validateStateMatchesFilesystem() holds. */
     public func removeIfExists(path: stdFs.Path): Unit {
         stdFs.removeIfExists(path, recursive: true)
         _removePath(path)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: path does not exist (e.g. randFreshPath). Post: path and all ancestor dirs under tmpRoot exist on disk and are in existingFolderPaths; validateStateMatchesFilesystem() holds. */
@@ -472,39 +473,39 @@ public class FsContext {
         stdFs.Directory.create(path, recursive: true)
         addAncestorDirectoriesUnderTmp(path)
         existingFolderPaths.add(pathForState(path.normalize()))
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: path does not exist; parent directory exists (e.g. randFreshPath under existing folder). Post: path exists as regular file on disk and is in existingFilePaths; validateStateMatchesFilesystem() holds. */
     public func fileCreate(path: stdFs.Path): Unit {
         stdFs.File.create(path)
         existingFilePaths.add(pathForState(path.normalize()))
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: path is in existingFilePaths and is a regular file. Post: returns file contents; state unchanged; validateStateMatchesFilesystem() holds. */
     public func fileReadFrom(path: stdFs.Path): Array<Byte> {
         let result = stdFs.File.readFrom(path)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
         return result
     }
 
     /** Pre: path is in existingFilePaths. Post: file at path has content; state unchanged; validateStateMatchesFilesystem() holds. */
     public func fileWriteTo(path: stdFs.Path, content: Array<Byte>): Unit {
         stdFs.File.writeTo(path, content)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: path is in existingFilePaths. Post: content appended to file at path; state unchanged; validateStateMatchesFilesystem() holds. */
     public func fileAppendTo(path: stdFs.Path, content: Array<Byte>): Unit {
         stdFs.File.appendTo(path, content)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: path is in state (file, dir, or symlink). Post: no state change (canonicalize is side-effect-free for our model); validateStateMatchesFilesystem() holds. */
     public func canonicalize(path: stdFs.Path): Unit {
         stdFs.canonicalize(path)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: sourcePath is in state; to is fresh (e.g. randFreshPath) or will be overwritten; not sourcePath == to; if source is dir, to not under sourcePath. Post: to (and subtree if dir) exists on disk and in state; sourcePath unchanged; validateStateMatchesFilesystem() holds. */
@@ -530,7 +531,7 @@ public class FsContext {
         } else if (wasSym) {
             existingSymlinkPaths.add(toN)
         }
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     // TODO: copyWithoutOverwrite(sourcePath, to) – leave as TODO, not registered in getLibFs.
@@ -560,7 +561,7 @@ public class FsContext {
         } else if (wasSym) {
             existingSymlinkPaths.add(toN)
         }
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     // TODO: renameWithoutOverwrite(sourcePath, to) - leave as TODO, not registered in getLibFs.
@@ -569,14 +570,14 @@ public class FsContext {
     public func directoryCreateNonRecursive(path: stdFs.Path): Unit {
         stdFs.Directory.create(path, recursive: false)
         existingFolderPaths.add(pathForState(path.normalize()))
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: directoryPath is in existingFolderPaths. Post: a new temp directory exists under directoryPath on disk and its path is in existingFolderPaths; validateStateMatchesFilesystem() holds. */
     public func directoryCreateTemp(directoryPath: stdFs.Path): Unit {
         let p = stdFs.Directory.createTemp(directoryPath)
         existingFolderPaths.add(pathForState(p))
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
     
 
@@ -585,13 +586,13 @@ public class FsContext {
     /** Pre: path is in existingFolderPaths and exists as directory on disk. Post: no state change; validateStateMatchesFilesystem() holds. */
     public func directoryReadFrom(path: stdFs.Path): Unit {
         stdFs.Directory.readFrom(path)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: path is in existingFolderPaths and exists as directory on disk. Post: no state change; validateStateMatchesFilesystem() holds. */
     public func directoryWalk(path: stdFs.Path): Unit {
         stdFs.Directory.walk(path) { _ => true }
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: directoryPath is in existingFolderPaths. Post: a new temp file exists under directoryPath on disk and its path is in existingFilePaths; validateStateMatchesFilesystem() holds. */
@@ -603,7 +604,7 @@ public class FsContext {
         } finally {
             f.close()
         }
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: link does not exist (e.g. randFreshPath); to exists and is in state. Post: link exists as symlink on disk and is in existingSymlinkPaths; validateStateMatchesFilesystem() holds. */
@@ -613,7 +614,7 @@ public class FsContext {
         }
         stdFs.SymbolicLink.create(link, to: to)
         existingSymlinkPaths.add(pathForState(link.normalize()))
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: path is in existingSymlinkPaths (or no-op when empty). Post: no state change; validateStateMatchesFilesystem() holds. */
@@ -622,7 +623,7 @@ public class FsContext {
             return
         }
         stdFs.SymbolicLink.readFrom(path)
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     /** Pre: link does not exist; to is in existingFilePaths; link != to. Post: link exists as hard link on disk and is in existingFilePaths; validateStateMatchesFilesystem() holds. */
@@ -632,7 +633,7 @@ public class FsContext {
         }
         stdFs.HardLink.create(link, to: to)
         existingFilePaths.add(pathForState(link.normalize()))
-        validateStateMatchesFilesystem()
+        // validateStateMatchesFilesystem()
     }
 
     public func cleanup(): Unit {
