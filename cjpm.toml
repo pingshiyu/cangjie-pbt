@@ -1,18 +1,18 @@
 [package]
-  cjc-version = "1.0.0"
+  cjc-version = "1.0.3"
+  compile-option = "--experimental --enable-eh -Woff unused"
+  description = ""
   name = "cangjie_experiments"
-  description = "nothing here"
-  version = "1.0.0"
-  target-dir = ""
-  src-dir = ""
   output-type = "executable"
-  compile-option = "--experimental --enable-eh -Woff unused" 
-  override-compile-option = ""
-  link-option = ""
+  src-dir = "src"
+  target-dir = ""
+  version = "1.0.0"
+  [package.package_configuration]
+  [package.scripts]
 
-[package.package-configuration]
-
-[target.aarch64-apple-darwin]                                                     
-  [target.aarch64-apple-darwin.bin-dependencies]
-    path-option = ["/Users/jacob/projects/resumptions-dev/software/darwin_aarch64_cjnative/dynamic/stdx"]
-
+[target.aarch64-apple-darwin.bin-dependencies]
+  path-option = ["${CANGJIE_STDX_PATH}"]
+[target.x86_64-unknown-linux-gnu.bin-dependencies]
+  path-option = ["${CANGJIE_STDX_PATH}"]
+[target.x86_64-w64-mingw32.bin-dependencies]
+  path-option = ["${CANGJIE_STDX_PATH}"]

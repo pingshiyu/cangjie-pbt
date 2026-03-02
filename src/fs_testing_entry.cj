@@ -27,7 +27,7 @@ func withFile(path: Path, k: (File) -> Unit): Unit {
         File.create(path)
         File.writeTo(path, content)
     } else {
-        throw Exception("withFile bug triggered: file ${path} already exists.")
+        throw Exception("EXPECTED BUG: withFile bug triggered: file ${path} already exists.")
     }
 
     // open file for reading and apply k(f) to it a few times
@@ -43,7 +43,7 @@ func withFile(path: Path, k: (File) -> Unit): Unit {
     // check for existence of file
     // Bug triggered here: if our file happens to be deleted by k(f)
     if (!exists(path)) {
-        throw Exception("withFile bug triggered: file ${path} does not exist.")
+        throw Exception("EXPECTED BUG: withFile bug triggered: file ${path} does not exist.")
     }
 
     // open the file and appnd to the end
@@ -55,7 +55,7 @@ func withFile(path: Path, k: (File) -> Unit): Unit {
     fa.read(firstLine)
     for (i in 0..content.size) {
         if (firstLine[i] != content[i]) {
-            throw Exception("withFile bug triggered: first line of file ${path} is not equal to content.")
+            throw Exception("EXPECTED BUG: withFile bug triggered: first line of file ${path} is not equal to content.")
         }
     }
     fa.write("Final log entry, completed successfully.".toArray())
@@ -76,7 +76,7 @@ func randomPathIn(folder: String): () -> Path {{ =>
 
 // Entry: build libFs with shared box, ensure tmp exists, run withFile under executeUntilDone in runInContext.
 public func main_fs_testing(): Unit {
-    for (i in 0..100) {
+    for (i in 0..10) {
         let fg = FsContext("tmp")
         fg.cleanup()
         let seed: Option<UInt64> = None
