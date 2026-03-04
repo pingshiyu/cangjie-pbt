@@ -47,8 +47,6 @@ public class NetContext {
         return addr.port
     }
 
-    // --- Generators used by getTcpRunners
-
     // Returns an index of a TcpServerSocket that is bound and not closed; creates one if none exist.
     private func randBoundTcpServerIndex(): Int64 {
         for (i in 0..tcpServers.size) {
@@ -105,16 +103,6 @@ public class NetContext {
         let payload = randSmallByteArray()
         tcpSocketWriteIndex(clientIdx, payload)
         return acceptedIdx
-    }
-
-    // --- TCP wrapper methods (the two used by getTcpRunners)
-
-    /** Pre: none. Post: new TcpServerSocket(0) created and recorded; not bound, not closed. */
-    public func tcpServerCreateUnit(): Unit {
-        let server = TcpServerSocket(bindAt: 0u16)
-        tcpServers.add(server)
-        tcpServerBound.add(false)
-        tcpServerClosed.add(false)
     }
 
     private static let acceptShortTimeout: Duration = 20 * Duration.millisecond

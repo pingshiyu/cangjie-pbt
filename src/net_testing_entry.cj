@@ -10,14 +10,18 @@ func dummyNetTester(_ : Int64): Unit {
     perform Switch()
 }
 
+func dummyFunction() : Unit {
+    println("dummyFunction")
+}
+
 // Entry: NetContext + getLibNet, run dummyNetTester under executeUntilDone (runInContext body inlined).
 public func main_net_testing(): Unit {
-    for (i in 360..368) {
+    for (i in 0..100) {
         let netCtx = NetContext("tmp")
         netCtx.cleanup()
-        netCtx.initialiseContext()
+        netCtx.initialiseContext() // seems to happen when we need to clone netCtx a lot.
         let lib = ArrayList([
-            { => netCtx.tcpSocketReadIndex(netCtx.randConnectedTcpSocketIndexWithData(), netCtx.randSmallByteArray()) },
+            { => netCtx.randSmallByteArray() },
         ])
         let ress = ArrayList<Res>()
         let fuel = Box<Int64>(10)
@@ -44,7 +48,6 @@ public func main_net_testing(): Unit {
                 }
             }
         }
-        netCtx.cleanup()
-        println("********** Net iteration ${i + 1} completed **********")
+        println("********** Net iteration ${i} completed **********")
     }
 }
