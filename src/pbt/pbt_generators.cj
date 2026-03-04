@@ -43,20 +43,6 @@ withScope("randInt64()") {
     return finalVal
 }}
 
-public func randNat(): List<UInt64> { 
-withScope("randNat()") {
-    // pick a random natural number
-    let ns : ArrayList<UInt64> = ArrayList<UInt64>()
-    var keepGoing : Bool = false
-    do {
-        ns.add(UInt64(rand()))
-        keepGoing = randBool(0.50)
-    } while (keepGoing)
-    
-    // final value is \sum (2^(4i) * ns[i])
-    return ns
-}}
-
 public func randIntRange(begin : Int64, end : Int64) : Int64 {
 withScope("randIntRange(" + begin.toString() + ", " + end.toString() + ")") {
     // int in range [begin, end)
@@ -90,18 +76,6 @@ withScope("randList<T>(g)") {
     return l
 }}}
 
-// generate a list of n numbers, with n randomly chosen.
-public func randIntListAlt() : List<Int64> {
-withScope("randIntList()") {
-    let n : Int64 = abs(randInt64())
-    let l : List<Int64> = ArrayList<Int64>()
-    for (_ in 0..n) {
-        let x : Int64 = Int64(rand())
-        l.add(x)
-    }
-    return l
-}}
-
 public func randOption<T>(p: Float64, g : () -> T) : () -> Option<T> {{=>
 withScope("randOption(${p})") {
     let makeOpt = randBool(p)
@@ -111,27 +85,6 @@ withScope("randOption(${p})") {
         return None
     }
  }}}
-
-// Generator functions that return a function
-public func randInt64_(): () -> Int64 {{=>
-    randInt64()
- }}
-
-public func randIntRange_(begin: Int64, end: Int64): () -> Int64 {{=>
-    randIntRange(begin, end)
- }}
-
-// Generator for nested lists (lists of lists)
-public func randNestedList<T>(eLen: Int64, g: () -> T): () -> List<List<T>> {{=>
-withScope("randNestedList<T>(eLen, g)") {
-    let p: Float64 = 1.0 - 1.0 / Float64(eLen)
-    let outerList: List<List<T>> = ArrayList<List<T>>()
-    while (randBool(p)) {
-        let innerList: List<T> = randList(eLen, g)()
-        outerList.add(innerList)
-    }
-    return outerList
-}}}
 
  public func randAlphanumericChar(): () -> Rune {{=>
  withScope("randAlphanumericChar()") {
@@ -143,16 +96,6 @@ withScope("randNestedList<T>(eLen, g)") {
         // try again, should generally generate an alphanumeric quickly
         return randAlphanumericChar()()
     }
- }}}
-
- public func randString(sLen: Int64): () -> String {{=>
- withScope("randString(sLen)") {
-    // pick n random ascii characters
-    var s: String = ""
-    for (_ in 0..sLen) {
-        s += randAlphanumericChar()().toString()
-    }
-    return s
  }}}
 
  public func randShortString(n !: Int64 = 1, alphabet !: List<String> = ArrayList(["a", "b"])): () ->  String {{=>

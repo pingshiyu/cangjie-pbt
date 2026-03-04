@@ -1,6 +1,6 @@
 [package]
   cjc-version = "1.0.3"
-  compile-option = "--experimental --enable-eh -Woff unused"
+  compile-option = "--experimental --enable-eh"
   description = ""
   name = "cangjie_experiments"
   output-type = "executable"
@@ -8,6 +8,7 @@
   target-dir = ""
   version = "1.0.0"
   [package.package_configuration]
+  # Profiling: run ./scripts/profile.sh (see docs/profiling.md)
   [package.scripts]
 
 [target.aarch64-apple-darwin.bin-dependencies]

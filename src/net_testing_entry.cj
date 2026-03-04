@@ -1,29 +1,48 @@
-// Entry point for std.net PBT. Registers all defined executors (TCP, Unix, UDP) and runs them via runInContext.
+// Entry point for std.net PBT. Registers all defined executors (TCP, Unix, UDP) and runs them (runInContext inlined).
 package cangjie_experiments
 
 import std.collection.*
-import cangjie_experiments.define.*
+import std.random.*
 import cangjie_experiments.resumptions.*
-import cangjie_experiments.resumptions.loop.*
 import cangjie_experiments.pbt.*
 
-func dummyNetTester(i : Int64): Unit {
-    perform Switch()
-    perform Switch()
+func dummyNetTester(_ : Int64): Unit {
     perform Switch()
 }
 
-// Entry: create NetContext, register all executors, initialise state, run dummyNetTester under executeUntilDone in runInContext.
-// Each Switch() causes the handler to run a random UnitFn from the registered executors.
+// Entry: NetContext + getLibNet, run dummyNetTester under executeUntilDone (runInContext body inlined).
 public func main_net_testing(): Unit {
-    for (i in 0..10) {
+    for (i in 360..368) {
         let netCtx = NetContext("tmp")
         netCtx.cleanup()
-        let seed: Option<UInt64> = None
-        let lib = getLibNet(netCtx)
-        runInContext(seed, lib, 25) {
-            netCtx.initialiseContext()
-            executeUntilDone(@RunRandomly([i in cjRandom<Int64>], dummyNetTester))
+        netCtx.initialiseContext()
+        let lib = ArrayList([
+            { => netCtx.tcpSocketReadIndex(netCtx.randConnectedTcpSocketIndexWithData(), netCtx.randSmallByteArray()) },
+        ])
+        let ress = ArrayList<Res>()
+        let fuel = Box<Int64>(10)
+        runExtRand(Random(UInt64(i))) {
+            let done : Box<Bool> = Box(false)
+            try {
+                dummyNetTester(0)
+                done.value = true
+            } handle (_ : Switch, r : Res) {
+                ress.add(r)
+            }
+            while (!(done.value)) {
+                // resume a random function or a resumption from the list
+                let hasResumptions = ress.size > 0
+                if (fuel.value > 0 && randBool(0.50)) {
+                    fuel.value -= 1
+                    let chosenF = lib[randIntRange(0, lib.size)]
+                    chosenF()
+                } else if (hasResumptions) {
+                    let chosenR = ress.remove(at: randIntRange(0, ress.size))
+                    resume chosenR with ()
+                } else {
+                    println("WARNING: no resumptions, didn't choose to run a function. skipping")
+                }
+            }
         }
         netCtx.cleanup()
         println("********** Net iteration ${i + 1} completed **********")

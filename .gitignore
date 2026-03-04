@@ -12,3 +12,8 @@ target
 *.macrocall
 
 tmp/
+
+# Profiler output
+profile/
+*.prof
+perf.data
