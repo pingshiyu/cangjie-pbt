@@ -5,10 +5,25 @@ package cangjie_experiments
 import std.collection.*
 import std.net.*
 import std.fs.*
+import std.math.*
+import std.random.*
 import cangjie_experiments.define.*
-import cangjie_experiments.resumptions.loop.*
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.pbt.*
+import std.unittest.*
+
+class ChooseFromEmptyListError <: Exception {
+    public ChooseFromEmptyListError(message: String) {
+        super(message)
+    }
+}
+
+func randomIntInRange(begin : Int64, end : Int64) : Int64 {
+    let range = end - begin
+    let width = abs(cjRandom<Int64>() % range)
+    let v = begin + width
+    return v
+}
 
 // --- TCP state: servers (socket, bound, closed); clients (socket, connected, closed).
 // We use parallel lists; index i in each list corresponds to the same entry.
@@ -63,6 +78,38 @@ public class NetContext {
 
     public init(tmpRoot: String) {
         this.tmpRoot = tmpRoot
+    }
+
+    private func randIntRangeLocal(begin: Int64, end: Int64): Int64 {
+        randomIntInRange(begin, end)
+    }
+
+    private func randElemLocal<T>(ls: List<T>): T {
+        let n: Int64 = ls.size
+        if (n == 0) {
+            throw ChooseFromEmptyListError("randElem: list is empty")
+        }
+        let ix = randIntRangeLocal(0, n)
+        return ls[ix]
+    }
+
+    private func randBoolLocal(p: Float64): Bool {
+        let v = abs(cjRandom<Int64>()) % 10000
+        return Float64(v) / 10000.0 < p
+    }
+
+    private static let randShortStringAlphabet: ArrayList<String> = ArrayList(["a", "b"])
+
+    private func randShortStringLocal(n: Int64): String {
+        var s = ""
+        for (_ in 0..n) {
+            s += randElemLocal(randShortStringAlphabet)
+        }
+        return s
+    }
+
+    private func randSmallBytesLocal(n: Int64): Array<Byte> {
+        randShortStringLocal(n).toArray()
     }
 
     // --- Helpers: get port from a bound TCP server (localAddress is Option<SocketAddress>; cast to IPSocketAddress yields Option<IPSocketAddress>).
@@ -132,7 +179,7 @@ public class NetContext {
             tcpServerClosed.add(false)
             return tcpServers.size - 1
         }
-        return randElem(open)
+        return randElemLocal(open)
     }
 
     // Returns an index of a TcpSocket that is connected and not closed; creates one if none exist.
@@ -180,13 +227,13 @@ public class NetContext {
             tcpClientHasData.add(false)
             return tcpClients.size - 1
         }
-        return randElem(open)
+        return randElemLocal(open)
     }
 
     // Non-empty byte array for read/write buffers. Size in [1, 1024] for TCP.
     public func randSmallByteArray(): Array<Byte> {
-        let n = randIntRange(1, 1025)
-        return randSmallBytes(n: n)().toArray()
+        let n = randIntRangeLocal(1, 1025)
+        return randSmallBytesLocal(n)
     }
 
     // Address to connect a client to (localhost:port of a bound server). Ensures server exists.
@@ -420,7 +467,7 @@ public class NetContext {
         var loops: Int64 = 1
         do {
             let n = Int64(loops % 10) + 1
-            path = tmpRoot + "/uds_" + randShortString(n: n)()
+            path = tmpRoot + "/uds_" + randShortStringLocal(n)
             loops += 1
         } while (unixPathInUse(path) || unixPathReservedByServer(path) || unixPathReservedByDgram(path) || exists(Path(path)))
         return path
@@ -472,7 +519,7 @@ public class NetContext {
         if (open.isEmpty()) {
             return randUnixServerPathForBind()
         }
-        let i = randElem(open)
+        let i = randElemLocal(open)
         return unixServerPath[i]
     }
 
@@ -519,7 +566,7 @@ public class NetContext {
             unixClientHasData.add(false)
             return unixClients.size - 1
         }
-        return randElem(open)
+        return randElemLocal(open)
     }
 
     /** Returns a connected Unix socket index that has data to read (so read won't block). Ensures one by writing from peer if needed. */
@@ -776,7 +823,7 @@ public class NetContext {
         if (open.isEmpty()) {
             return randUnixDgramPathForBind()
         }
-        let i = randElem(open)
+        let i = randElemLocal(open)
         return unixDgramPath[i]
     }
 
@@ -857,7 +904,7 @@ public class NetContext {
 
     /** A path we can use as recipient for sendTo (bound Unix socket - dgram or stream server). */
     public func randUnixRecipientPath(): String {
-        if (randBool(0.50) && !unixDgramPath.isEmpty()) {
+        if (randBoolLocal(0.50) && !unixDgramPath.isEmpty()) {
             return randBoundUnixDgramPath()
         }
         return randUnixServerPathBound()
@@ -1059,7 +1106,7 @@ public class NetContext {
             udpHasData.add(false)
             return udpSockets.size - 1
         }
-        return randElem(open)
+        return randElemLocal(open)
     }
 
     public func randConnectedUdpSocketIndex(): Int64 {
@@ -1077,8 +1124,8 @@ public class NetContext {
 
     /** Payload size in [1, 512] for UDP to avoid "message too long" on all platforms. */
     public func randSmallByteArrayUdp(): Array<Byte> {
-        let n = randIntRange(1, 513)
-        return randSmallBytes(n: n)().toArray()
+        let n = randIntRangeLocal(1, 513)
+        return randSmallBytesLocal(n)
     }
 
     /** Recipient same family as local (IPv4). */

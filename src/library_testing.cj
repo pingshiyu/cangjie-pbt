@@ -21,6 +21,21 @@ func effectfulFunction(label: String): UnitFn {{ =>
     println("${label}: called Switch 2")
 }}
 
+/** Runs the property-based test body `f` within a randomized execution context.
+ *
+ * Parameters:
+ *   - seed: Random seed for reproducibility. `Some(n)` uses a fixed seed for deterministic,
+ *     replayable runs (useful for debugging or reproducing failures). `None` uses a fresh
+ *     random seed each run for broader exploration.
+ *   - lib: Library of executable units (effectful functions) that the PBT framework can
+ *     inject when the tested code performs external effects (e.g. Switch, GetRandomUnitFn).
+ *     Each element is a function the framework may randomly choose to run—e.g. net operations,
+ *     fs operations, or abstract "unknown" functions in differential testing.
+ *   - f0: Initial fuel count. Fuel limits how many external calls (GetRandomUnitFn,
+ *     RunFunction) can be made before the run is forced to stop. Each such operation
+ *     consumes one unit of fuel. When fuel reaches zero, no new external calls are started.
+ *     This bounds exploration depth to prevent infinite loops during random testing.
+ */
 func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f0: Int64, f : () -> Unit) : Unit {
     let r = match (seed) {
         case Some(s) => Random(s)
@@ -63,6 +78,10 @@ func randObject<T>() : T {
 
 func cjRandom<T>() : T where T <: Arbitrary<T> {
     return T.arbitrary(perform GetRandom()).next()
+}
+
+func cjRandomAlt<T>(r : Random) : T where T <: Arbitrary<T> {
+    return T.arbitrary(r).next()
 }
 
 class ExampleClass {
