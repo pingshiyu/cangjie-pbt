@@ -17,3 +17,8 @@ public class Switch <: Command<Unit> {}
 
 public type Res = Resumption<Unit, Unit>
 public type UnitFn = () -> Unit
+
+public func ignoreOutput<B>(f : () -> B): () -> Unit {{ =>
+    let b = f()
+    return ()
+}}
