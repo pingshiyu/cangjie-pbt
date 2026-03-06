@@ -9,21 +9,8 @@ import std.math.*
 import std.random.*
 import cangjie_experiments.define.*
 import cangjie_experiments.resumptions.*
-import cangjie_experiments.pbt.*
 import std.unittest.*
-
-class ChooseFromEmptyListError <: Exception {
-    public ChooseFromEmptyListError(message: String) {
-        super(message)
-    }
-}
-
-func randomIntInRange(begin : Int64, end : Int64) : Int64 {
-    let range = end - begin
-    let width = abs(cjRandom<Int64>() % range)
-    let v = begin + width
-    return v
-}
+import cangjie_experiments.generators.*
 
 // --- TCP state: servers (socket, bound, closed); clients (socket, connected, closed).
 // We use parallel lists; index i in each list corresponds to the same entry.

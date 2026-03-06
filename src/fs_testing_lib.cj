@@ -7,7 +7,7 @@ import stdx.effect.*
 import cangjie_experiments.define.*
 import cangjie_experiments.resumptions.loop.*
 import cangjie_experiments.resumptions.*
-import cangjie_experiments.pbt.*
+import cangjie_experiments.generators.*
 
 // Symlink runners only on non-Windows (symlink APIs may require privileges or differ on Windows).
 @When[os != "Windows"]

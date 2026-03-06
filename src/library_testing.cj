@@ -8,8 +8,8 @@ import std.unittest.prop_test.*
 import std.unittest.common.*
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.resumptions.loop.*
-import cangjie_experiments.pbt.*
 import cangjie_experiments.utils.*
+import cangjie_experiments.generators.*
 
 // User code.
 // example functions
@@ -21,67 +21,8 @@ func effectfulFunction(label: String): UnitFn {{ =>
     println("${label}: called Switch 2")
 }}
 
-/** Runs the property-based test body `f` within a randomized execution context.
- *
- * Parameters:
- *   - seed: Random seed for reproducibility. `Some(n)` uses a fixed seed for deterministic,
- *     replayable runs (useful for debugging or reproducing failures). `None` uses a fresh
- *     random seed each run for broader exploration.
- *   - lib: Library of executable units (effectful functions) that the PBT framework can
- *     inject when the tested code performs external effects (e.g. Switch, GetRandomUnitFn).
- *     Each element is a function the framework may randomly choose to run—e.g. net operations,
- *     fs operations, or abstract "unknown" functions in differential testing.
- *   - f0: Initial fuel count. Fuel limits how many external calls (GetRandomUnitFn,
- *     RunFunction) can be made before the run is forced to stop. Each such operation
- *     consumes one unit of fuel. When fuel reaches zero, no new external calls are started.
- *     This bounds exploration depth to prevent infinite loops during random testing.
- */
-func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f0: Int64, f : () -> Unit) : Unit {
-    let r = match (seed) {
-        case Some(s) => Random(s)
-        case None => Random()
-    }
-    let arb = ArbitraryGen()
-    let ress = ArrayList<Res>()
-    
-    runExtRand(r) { arb.sHandle { handleStateV(()) { handleFuel(f0) {   
-        try {
-            f()
-        } handle(e: HasRes) {
-            resume with (ress.size > 0)
-        } handle(e: GetRandomRes) {
-            let chosenRIx = randIntRange(0, ress.size)
-            resume with ress.remove(at:chosenRIx)
-        } handle(e: AddRes) {
-            ress.add(e.r)
-            resume with ()
-        } handle(e: GetRandomUnitFn) {
-            let chosenRIx = randIntRange(0, lib.size)
-            perform ConsumeFuel()
-            resume with lib[chosenRIx]
-        } handle(e: RunFunction) {
-            if (perform HasFuel()) {
-                perform ConsumeFuel()
-                resume with randBool(e.p)
-            } else {
-                resume with false
-            }
-        } handle(e: GetRandom) {
-            resume with r
-        }
-    }}}}
-}
-
 func randObject<T>() : T {
     perform GenRandom<T>()
-}
-
-func cjRandom<T>() : T where T <: Arbitrary<T> {
-    return T.arbitrary(perform GetRandom()).next()
-}
-
-func cjRandomAlt<T>(r : Random) : T where T <: Arbitrary<T> {
-    return T.arbitrary(r).next()
 }
 
 class ExampleClass {
@@ -112,18 +53,18 @@ func getContext() : ArrayList<UnitFn> {
 
     let libCollectionsH = ArrayList([
         // these functions are higher order
-        // @RunRandomly([f in randFunc<Int64, Int64>, ls in cjRandom<ArrayList<Int64>>], map_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], map_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], filter_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], all_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], none_),
-        @RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], any_),
-        @RunRandomly([f in randFunc<(Int8, Int8), Int8>, ls in cjRandom<ArrayList<Int8>>], reduce_),
-        @RunRandomly([f in randFunc<Int8, ?Bool>, ls in cjRandom<ArrayList<Int8>>], filterMap_),
-        @RunRandomly([f in randFunc<Bool, ArrayList<Bool>>, ls in cjRandom<ArrayList<Bool>>], flatMap_),
-        @RunRandomly([f in randFunc<Bool, Unit>, ls in cjRandom<ArrayList<Bool>>], forEach_),
-        @RunRandomly([f in randFunc<(Int64, Bool), Int64>, e in randInt64, ls in cjRandom<ArrayList<Bool>>], fold_),
-        @RunRandomly([f in randFunc<Int64, Unit>, ls in cjRandom<ArrayList<Int64>>], inspect_),
+        // @RunRandomly([f in randFuncAlt<Int64, Int64>, ls in cjRandom<ArrayList<Int64>>], map_),
+        @RunRandomly([f in randFuncAlt<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], map_),
+        @RunRandomly([f in randFuncAlt<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], filter_),
+        @RunRandomly([f in randFuncAlt<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], all_),
+        @RunRandomly([f in randFuncAlt<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], none_),
+        @RunRandomly([f in randFuncAlt<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], any_),
+        @RunRandomly([f in randFuncAlt<(Int8, Int8), Int8>, ls in cjRandom<ArrayList<Int8>>], reduce_),
+        @RunRandomly([f in randFuncAlt<Int8, ?Bool>, ls in cjRandom<ArrayList<Int8>>], filterMap_),
+        @RunRandomly([f in randFuncAlt<Bool, ArrayList<Bool>>, ls in cjRandom<ArrayList<Bool>>], flatMap_),
+        @RunRandomly([f in randFuncAlt<Bool, Unit>, ls in cjRandom<ArrayList<Bool>>], forEach_),
+        @RunRandomly([f in randFuncAlt<(Int64, Bool), Int64>, e in randInt64, ls in cjRandom<ArrayList<Bool>>], fold_),
+        @RunRandomly([f in randFuncAlt<Int64, Unit>, ls in cjRandom<ArrayList<Int64>>], inspect_),
     ])
     let libCollections = ArrayList([
         // End operations from end_operation.cj
@@ -164,12 +105,18 @@ func main_library_testing() {
     // calls to the unknown functions `f` are controlled.
     println("comparing two runs of functions:")
     let seed : Option<UInt64> = Some(Random().nextUInt64()) // None // Some(55)
-    runInContext(seed, lib, 20) {
-        executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], map_))
+    withSeed(seed) {
+        executeUntilDoneFast(
+            lib,
+            20,
+            @RunRandomly([f in randFuncAlt<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], map_))
     }
     println("================================================")
-    runInContext(seed, lib, 20) {
-        executeUntilDone(@RunRandomly([f in randFunc<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], filter_))
+    withSeed(seed) {
+        executeUntilDoneFast(
+            lib,
+            20,
+            @RunRandomly([f in randFuncAlt<Int64, Bool>, ls in cjRandom<ArrayList<Int64>>], filter_))
     }
     return 0
 }

@@ -7,7 +7,7 @@ import std.fs.*
 import cangjie_experiments.define.*
 import cangjie_experiments.resumptions.*
 import cangjie_experiments.resumptions.loop.*
-import cangjie_experiments.pbt.*
+import cangjie_experiments.generators.*
 import std.io.*
 
 /* 
@@ -77,12 +77,15 @@ func randomPathIn(folder: String): () -> Path {{ =>
 // Entry: build libFs with shared box, ensure tmp exists, run withFile under executeUntilDone in runInContext.
 public func main_fs_testing(): Unit {
     for (i in 0..10) {
+        let seed: Option<UInt64> = None
         let fg = FsContext("tmp")
         fg.cleanup()
-        let seed: Option<UInt64> = None
-        runInContext(seed, getLibFs(fg), 50) {
+        withSeed(seed) {
             fg.initialiseContext()
-            executeUntilDone(@RunRandomly([path in randomPathIn("tmp"), k in randFunc<File, Unit>], withFile))
+            executeUntilDoneFast(
+                getLibFs(fg),
+                50, 
+                @RunRandomly([path in randomPathIn("tmp"), k in randFuncAlt<File, Unit>], withFile))
         }
         fg.cleanup()
         println("********** Iteration ${i+1} completed **********")

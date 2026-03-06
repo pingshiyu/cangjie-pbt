@@ -6,7 +6,7 @@ import std.math.*
 import std.random.*
 import std.fs as stdFs
 import cangjie_experiments.resumptions.*
-import cangjie_experiments.pbt.*
+import cangjie_experiments.generators.*
 
 // ArrayList has no indexOf in stdlib; extend it to match Array behavior.
 extend<T> ArrayList<T> where T <: Equatable<T> {

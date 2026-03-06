@@ -6,6 +6,57 @@ import std.random.*
 import cangjie_experiments.pbt.*
 import cangjie_experiments.resumptions.*
 
+/** Runs the property-based test body `f` within a randomized execution context.
+ *
+ * Parameters:
+ *   - seed: Random seed for reproducibility. `Some(n)` uses a fixed seed for deterministic,
+ *     replayable runs (useful for debugging or reproducing failures). `None` uses a fresh
+ *     random seed each run for broader exploration.
+ *   - lib: Library of executable units (effectful functions) that the PBT framework can
+ *     inject when the tested code performs external effects (e.g. Switch, GetRandomUnitFn).
+ *     Each element is a function the framework may randomly choose to run—e.g. net operations,
+ *     fs operations, or abstract "unknown" functions in differential testing.
+ *   - f0: Initial fuel count. Fuel limits how many external calls (GetRandomUnitFn,
+ *     RunFunction) can be made before the run is forced to stop. Each such operation
+ *     consumes one unit of fuel. When fuel reaches zero, no new external calls are started.
+ *     This bounds exploration depth to prevent infinite loops during random testing.
+ */
+func runInContext(seed: Option<UInt64>, lib: List<UnitFn>, f0: Int64, f : () -> Unit) : Unit {
+    let r = match (seed) {
+        case Some(s) => Random(s)
+        case None => Random()
+    }
+    let arb = ArbitraryGen()
+    let ress = ArrayList<Res>()
+    
+    runExtRand(r) { arb.sHandle { handleStateV(()) { handleFuel(f0) {   
+        try {
+            f()
+        } handle(e: HasRes) {
+            resume with (ress.size > 0)
+        } handle(e: GetRandomRes) {
+            let chosenRIx = randIntRange(0, ress.size)
+            resume with ress.remove(at:chosenRIx)
+        } handle(e: AddRes) {
+            ress.add(e.r)
+            resume with ()
+        } handle(e: GetRandomUnitFn) {
+            let chosenRIx = randIntRange(0, lib.size)
+            perform ConsumeFuel()
+            resume with lib[chosenRIx]
+        } handle(e: RunFunction) {
+            if (perform HasFuel()) {
+                perform ConsumeFuel()
+                resume with randBool(e.p)
+            } else {
+                resume with false
+            }
+        } handle(e: GetRandom) {
+            resume with r
+        }
+    }}}}
+}
+
 public func withMarkers<R>(f : () -> R): Unit {
     perform SetDone(false)
     let retVal = f()

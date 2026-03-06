@@ -3,6 +3,12 @@ package cangjie_experiments.resumptions
 import stdx.effect.*
 import std.random.*
 
+public class ChooseFromEmptyListError <: Exception {
+    public ChooseFromEmptyListError(message: String) {
+        super(message)
+    }
+}
+
 // ================ Unit public type resumptions ================
 /*
 Todo:
